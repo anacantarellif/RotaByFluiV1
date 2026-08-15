@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rota by Flui — 04 Comunidade</title>
+<link rel="stylesheet" href="app/styles.css" />
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { background: #E7E1D6; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #211B2A; }
+  #root { min-height: 100vh; }
+
+  .board { padding: 72px 80px 100px; }
+
+  .board-top {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding-bottom: 28px; margin-bottom: 56px; border-bottom: 2px solid #D5C9B4; flex-wrap: wrap; gap: 20px;
+  }
+  .board-top h1 { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-weight: 500; font-size: 44px; margin: 0; letter-spacing: -0.02em; line-height: 1; }
+  .board-top h1 span { color: #6C2BD9; font-style: italic; font-size: 30px; }
+  .board-top p { margin: 8px 0 0; font-size: 15px; color: #6A6275; font-weight: 500; }
+  .legend-top { display: flex; gap: 20px; font-size: 13px; font-weight: 600; color: #6A6275; }
+  .legend-top span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend-top i { width: 22px; height: 22px; border-radius: 6px; display: inline-block; }
+
+  .section { margin-bottom: 72px; }
+  .section-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 32px; }
+  .section-kicker { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; color: #6C2BD9; letter-spacing: 0.1em; }
+  .section-head h2 { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-weight: 500; font-size: 30px; margin: 0; letter-spacing: -0.01em; }
+  .section-head::after { content: ''; flex: 1; height: 1px; background: #D5C9B4; align-self: center; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 56px; }
+
+  .frame-wrap { width: 392px; }
+  .frame-cap { margin-top: 18px; font-size: 14px; color: #4A4255; text-align: center; }
+  .frame-cap b { font-weight: 700; }
+  .frame-cap span { color: #9A8F7C; font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 12px; }
+
+  /* board phone: same geometry, lighter shell on light canvas */
+  .board .phone {
+    box-shadow: 0 30px 60px -20px rgba(40,28,60,0.35), 0 0 0 9px #1a1622, 0 0 0 10px rgba(255,255,255,0.05);
+  }
+
+  /* Figma import: flatten bottom-sheets into clean static panels
+     (remove dark scrim overlay + entrance transforms that confuse importers) */
+  .board .sheet-scrim { display: none !important; }
+  .board .sheet { animation: none !important; }
+  .board .page-enter { animation: none !important; }
+</style>
+<template id="__bundler_thumbnail" data-bg-color="#6C2BD9">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#6C2BD9"/>
+    <path d="M50 24c7 10 12 16 12 23a12 12 0 0 1-24 0c0-7 5-13 12-23z" fill="#F4EEE3"/>
+    <circle cx="50" cy="47" r="5" fill="#6C2BD9"/>
+  </svg>
+</template>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="app/icons.jsx"></script>
+<script type="text/babel" src="app/data.jsx"></script>
+<script type="text/babel" src="app/map.jsx"></script>
+<script type="text/babel" src="app/station.jsx"></script>
+<script type="text/babel" src="app/screens-map.jsx"></script>
+<script type="text/babel" src="app/screens-extra.jsx"></script>
+<script>window.BOARD_ONLY = "04";</script>
+<script type="text/babel" src="app/board.jsx"></script>
+</body>
+</html>
