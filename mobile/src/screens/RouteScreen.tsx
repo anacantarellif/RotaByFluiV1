@@ -11,7 +11,7 @@
 // `onNavigate` (station hand-off from within a guide) does not appear anywhere in
 // the source RouteScreen/GuideDetail — grepped, zero occurrences — so it is not
 // wired here (per the porting task, only wire what the source actually calls).
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { PanResponder, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,9 +21,25 @@ import { GuideBrowser, GuideDetail } from '../components/guide/Guide';
 import { useTheme } from '../theme/ThemeContext';
 import { focus } from '../theme/tokens';
 import { useToast } from '../state/ToastContext';
+import { useCar } from '../state/CarContext';
+import { batteryAfterDistance, chargeMinutesAtPower, effectiveChargePowerKw } from '../utils/evCharging';
 import { DATA } from '../data/data';
-import { Guide, GuideStop } from '../data/types';
+import { Guide, GuideStop, RouteStop } from '../data/types';
 import { RootStackParamList } from '../navigation/types';
+
+// Curated geography of DATA.route's single scripted charge stop (see its `sub`
+// text: "Recarga 18 min · 50→80% · km 32") — the *position* stays fixed (it's a
+// curated real route, not a search result), but every number attached to it
+// (battery on arrival, charge duration, connector compatibility) is now computed
+// per the driver's selected car via src/utils/evCharging.ts instead of being the
+// static numbers DATA.route.stops shipped with.
+const CHARGE_STOP_KM = 32;
+const CHARGE_CONNECTORS = ['CCS2', 'Type 2'];
+const CHARGE_TARGET_PCT = 80;
+
+function effectiveKwLabel(effectiveKw: number, stationKw: number): string {
+  return effectiveKw < stationKw ? `carrega a até ${effectiveKw} kW (ponto oferece ${stationKw} kW)` : `carrega na potência máxima do ponto, ${stationKw} kW`;
+}
 
 // ---- battery slider ----
 // Source uses a native `<input type="range">`. RN has no built-in slider primitive
@@ -103,6 +119,7 @@ function BatterySlider({
 export function RouteScreen() {
   const { colors, font, space } = useTheme();
   const { pushToast } = useToast();
+  const { car } = useCar();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const R = DATA.route;
@@ -113,6 +130,49 @@ export function RouteScreen() {
   const [rateGuide, setRateGuide] = useState<Guide | null>(null);
 
   const onStartTrip = (g: Guide) => navigation.navigate('Trip', { guide: g });
+
+  // Recomputes every number on the route whenever the driver changes the
+  // departure battery or their selected car — see the module comment above.
+  const plan = useMemo(() => {
+    const chargeStop = R.stops.find((s) => s.kind === 'charge');
+    const stationPower = chargeStop?.power ?? 150;
+    const compatible = CHARGE_CONNECTORS.includes(car.connector);
+    const distAfterCharge = Math.max(0, R.distance - CHARGE_STOP_KM);
+
+    const batteryAtCharge = batteryAfterDistance(car, battery, CHARGE_STOP_KM);
+    const chargeMinutes = compatible ? chargeMinutesAtPower(car, stationPower, batteryAtCharge, CHARGE_TARGET_PCT) : null;
+    const arriveBattery = compatible
+      ? batteryAfterDistance(car, CHARGE_TARGET_PCT, distAfterCharge)
+      : batteryAfterDistance(car, battery, R.distance); // no viable charge stop for this connector — project the whole distance on departure battery, so the shortfall is visible
+
+    const stops: RouteStop[] = R.stops.map((s) => {
+      if (s.kind === 'start') return { ...s, battery, sub: `Saída · bateria ${battery}%` };
+      if (s.kind === 'charge') {
+        return {
+          ...s,
+          battery: batteryAtCharge,
+          // `undefined` (not the curated 18 min default) when the connector doesn't
+          // match — there's no real charge time to report if the car can't plug in.
+          time: compatible && chargeMinutes != null ? chargeMinutes : undefined,
+          power: stationPower,
+          sub: compatible
+            ? `Recarga ${chargeMinutes} min · ${batteryAtCharge}→${CHARGE_TARGET_PCT}% · km ${CHARGE_STOP_KM}`
+            : `Conector incompatível com o seu ${car.brand} ${car.model} (usa ${car.connector}) · km ${CHARGE_STOP_KM}`,
+        };
+      }
+      return { ...s, battery: arriveBattery, sub: `Chegada · bateria ${arriveBattery}%` };
+    });
+
+    return {
+      compatible,
+      chargeMinutes,
+      batteryAtCharge,
+      arriveBattery,
+      effectiveKw: effectiveChargePowerKw(car, stationPower),
+      stationPower,
+      stops,
+    };
+  }, [car, battery, R]);
 
   if (guide) {
     return (
@@ -182,6 +242,24 @@ export function RouteScreen() {
             <BatterySlider value={battery} onChange={setBattery} />
           </View>
 
+          {/* car-aware summary — new, not in the source. Shows which car the plan is
+              being calculated for and flags a charger mismatch before the driver taps
+              "Calcular rota", instead of only surfacing it in the timeline below. */}
+          <View
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
+              padding: 10, borderRadius: 12,
+              backgroundColor: plan.compatible ? colors.surface2 : colors.goldSoft,
+            }}
+          >
+            <Icon name={plan.compatible ? 'car' : 'alert'} size={15} color={plan.compatible ? colors.inkSoft : colors.goldInk} />
+            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '600', color: plan.compatible ? colors.inkSoft : colors.goldInk }}>
+              {plan.compatible
+                ? `Calculado para o seu ${car.brand} ${car.model} · ${car.connector} · ${effectiveKwLabel(plan.effectiveKw, plan.stationPower)}`
+                : `O ponto de recarga da rota não tem ${car.connector} (seu ${car.brand} ${car.model}) — a estimativa de bateria na chegada não considera recarga no caminho.`}
+            </Text>
+          </View>
+
           <Pressable
             onPress={() => {
               setDone(true);
@@ -222,7 +300,7 @@ export function RouteScreen() {
               </View>
               <View style={{ width: 1, backgroundColor: colors.line }} />
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.display, fontSize: 21, color: colors.ok }}>{R.arriveBattery}%</Text>
+                <Text style={{ fontFamily: font.display, fontSize: 21, color: colors.ok }}>{plan.arriveBattery}%</Text>
                 <Text style={{ fontSize: 11, color: colors.inkFaint }}>na chegada</Text>
               </View>
             </View>
@@ -235,9 +313,10 @@ export function RouteScreen() {
 
             <View style={{ position: 'relative', paddingLeft: 30 }}>
               <View style={{ position: 'absolute', left: 9, top: 8, bottom: 8, width: 2, backgroundColor: colors.lineStrong }} />
-              {R.stops.map((s, i) => {
+              {plan.stops.map((s, i) => {
                 const isCharge = s.kind === 'charge';
-                const label = `${s.name}, ${s.sub}, bateria ${s.battery}%${isCharge ? `, recarga de ${s.time} minutos, ${s.power} kW` : ''}`;
+                const hasChargeTime = isCharge && s.time != null;
+                const label = `${s.name}, ${s.sub}, bateria ${s.battery}%${hasChargeTime ? `, recarga de ${s.time} minutos, ${s.power} kW` : ''}`;
                 return (
                   <View key={i} style={{ position: 'relative', marginBottom: 18 }} accessible accessibilityLabel={label}>
                     <View
@@ -263,7 +342,7 @@ export function RouteScreen() {
                           {s.battery}%
                         </Text>
                       </View>
-                      {isCharge && (
+                      {hasChargeTime && (
                         <View
                           style={{
                             marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: colors.primarySoft,
@@ -284,6 +363,19 @@ export function RouteScreen() {
                               {s.power} kW
                             </Text>
                           </View>
+                        </View>
+                      )}
+                      {isCharge && !hasChargeTime && (
+                        <View
+                          style={{
+                            marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: colors.goldSoft,
+                            flexDirection: 'row', alignItems: 'center', gap: 10,
+                          }}
+                        >
+                          <Icon name="alert" size={18} color={colors.goldInk} />
+                          <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '600', color: colors.goldInk }}>
+                            Conector incompatível com o seu carro — sem recarga real neste ponto.
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -316,7 +408,7 @@ export function RouteScreen() {
                   blurb: '',
                   blurbLong: '',
                   tags: [],
-                  stops: R.stops.map(
+                  stops: plan.stops.map(
                     (s): GuideStop => ({
                       kind: s.kind,
                       name: s.name,
@@ -325,7 +417,12 @@ export function RouteScreen() {
                       dur: s.time ? `${s.time} min` : undefined,
                       power: s.power,
                       selo: s.selo,
-                      todo: s.kind === 'charge' ? 'Recarga planejada no meio do caminho — aproveite para um café.' : '',
+                      todo:
+                        s.kind === 'charge'
+                          ? plan.compatible
+                            ? `Recarga planejada para o seu ${car.brand} ${car.model} — aproveite para um café.`
+                            : `Conector incompatível com o seu ${car.brand} ${car.model} — procure outro ponto no caminho.`
+                          : '',
                     })
                   ),
                 })

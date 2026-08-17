@@ -5,14 +5,17 @@
 // Prop contract vs. the source: the source's `next()` called `onDone(car)` on the
 // last step, and `Pular` called `onDone(car)` immediately (skipping with whatever
 // car, if any, was picked so far). RootNavigator's `onDone` is zero-arg (it just
-// flips the persisted "onboarded" flag), so this still calls `onDone()` — the
-// picked car id isn't persisted anywhere yet (no car-selection storage exists in
-// the ported app), which mirrors the source: it never persisted `car` either,
-// it only ever held it in local state and dropped it once `onDone` fired.
+// flips the persisted "onboarded" flag), so this still calls `onDone()` with no
+// argument — but unlike the source (which dropped the picked car once `onDone`
+// fired, it only ever lived in local state), the pick is now persisted via
+// `useCar().setCarId()` the moment the driver taps a car, since every route/trip/
+// charge-time calculation in the app (src/utils/evCharging.ts) needs a real
+// selected car to work from.
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useCar } from '../state/CarContext';
 import { Icon, Seal } from '../components/icons/Icon';
 import { DATA } from '../data/data';
 
@@ -111,8 +114,9 @@ function PulseDot() {
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const { colors, font, space } = useTheme();
+  const { car: currentCar, setCarId } = useCar();
   const [step, setStep] = useState(0);
-  const [car, setCar] = useState<string | null>(null);
+  const [car, setCar] = useState<string | null>(currentCar.id);
   const [prefs, setPrefs] = useState<string[]>(['fast', 'coffee']);
 
   useEffect(() => {
@@ -232,7 +236,10 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
                 return (
                   <Pressable
                     key={c.id}
-                    onPress={() => setCar(c.id)}
+                    onPress={() => {
+                      setCar(c.id);
+                      setCarId(c.id);
+                    }}
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}
                     accessibilityLabel={`${c.brand} ${c.model}, ${c.battery} kWh, ${c.range} km de alcance, conector ${c.connector}`}

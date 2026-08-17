@@ -14,6 +14,7 @@ import {
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { ToastProvider } from './src/state/ToastContext';
 import { FavoritesProvider } from './src/state/FavoritesContext';
+import { CarProvider } from './src/state/CarContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 function Themed({ children }: { children: React.ReactNode }) {
@@ -43,9 +44,11 @@ export default function App() {
           <Themed>
             <ToastProvider>
               <FavoritesProvider>
-                <NavigationContainer>
-                  <RootNavigator />
-                </NavigationContainer>
+                <CarProvider>
+                  <NavigationContainer>
+                    <RootNavigator />
+                  </NavigationContainer>
+                </CarProvider>
               </FavoritesProvider>
             </ToastProvider>
           </Themed>

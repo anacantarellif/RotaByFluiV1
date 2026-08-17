@@ -15,6 +15,8 @@ import { StationSkeleton } from '../skeletons/Skeletons';
 import { useDelay } from '../../hooks/useDelay';
 import { ROTA_CONFIG } from '../../config';
 import { Avail, Station } from '../../data/types';
+import { useCar } from '../../state/CarContext';
+import { estimateChargeAt, fmtChargeMinutes } from '../../utils/evCharging';
 
 // ---- shared data maps (mirror the source's module-level AMEN / AVAIL) ----
 
@@ -269,6 +271,8 @@ export type StationDetailProps = {
 
 export function StationDetail({ st, onClose, onNavigate, onReport, onRate, fav, onFav }: StationDetailProps) {
   const { colors, font, space } = useTheme();
+  const { car } = useCar();
+  const estimate = estimateChargeAt(car, st);
   // Source called `useDelay(latency.detail)` with no dep key; the shared RN
   // hook requires one, so `st.id` is used — replays the loading skeleton
   // when a different station's ficha is opened, matching the source's intent.
@@ -402,6 +406,41 @@ export function StationDetail({ st, onClose, onNavigate, onReport, onRate, fav, 
                   <Spec icon="plug" label="Conectores" value={st.connectors.join(' · ')} />
                   <Spec icon="clock" label="Funcionamento" value={st.hours} />
                   <Spec icon="dollar" label="Preço médio" value={`R$ ${st.price.toFixed(2).replace('.', ',')}`} sub="kWh" />
+                </View>
+
+                {/* car-aware charging estimate — new, not in the source (which had no
+                    concept of a selected car). Every stop/route/trip screen in the app
+                    reads the same useCar()+evCharging.ts pair so the numbers agree. */}
+                <View
+                  style={{
+                    borderRadius: space.radius,
+                    padding: 14,
+                    marginBottom: 16,
+                    backgroundColor: estimate.compatible ? colors.primarySoft : colors.goldSoft,
+                  }}
+                  accessible
+                  accessibilityLabel={
+                    estimate.compatible
+                      ? `Com o seu ${car.brand} ${car.model}: recarga de ${estimate.fromPct} a ${estimate.toPct} por cento em aproximadamente ${estimate.minutes} minutos, a ${estimate.effectiveKw} quilowatts`
+                      : `Atenção: o conector deste ponto não é compatível com o seu ${car.brand} ${car.model}, que usa ${car.connector}`
+                  }
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: estimate.compatible ? 8 : 2 }}>
+                    <Icon name={estimate.compatible ? 'zap' : 'alert'} size={16} color={estimate.compatible ? colors.primary : colors.goldInk} />
+                    <Text style={{ fontWeight: '700', fontSize: 13.5, color: estimate.compatible ? colors.primarySoftInk : colors.goldInk }}>
+                      {estimate.compatible ? `Para o seu ${car.brand} ${car.model}` : 'Conector incompatível com o seu carro'}
+                    </Text>
+                  </View>
+                  {estimate.compatible ? (
+                    <Text style={{ fontSize: 13, lineHeight: 18, color: colors.primarySoftInk }}>
+                      {estimate.fromPct}% → {estimate.toPct}% em <Text style={{ fontFamily: font.mono, fontWeight: '700' }}>{fmtChargeMinutes(estimate.minutes ?? 0)}</Text>
+                      {' '}· até {estimate.effectiveKw} kW ({estimate.effectiveKw < st.power ? `limitado pelo carro, ponto oferece ${st.power} kW` : 'potência máxima do ponto'})
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 13, lineHeight: 18, color: colors.goldInk }}>
+                      Este ponto tem {st.connectors.join(' / ')}, mas seu carro usa {car.connector}. Procure outro ponto ou troque de carro no Perfil.
+                    </Text>
+                  )}
                 </View>
 
                 {/* amenities */}

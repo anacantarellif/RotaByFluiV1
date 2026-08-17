@@ -19,6 +19,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { MarkerStyle, useTheme } from '../theme/ThemeContext';
 import { useFavorites } from '../state/FavoritesContext';
+import { useCar } from '../state/CarContext';
 import { Icon } from '../components/icons/Icon';
 import { BrandMark } from '../components/BrandMark';
 import { ModalSheet } from '../components/sheets/ModalSheet';
@@ -28,7 +29,9 @@ import { Density, ThemeMode } from '../theme/tokens';
 export function ProfileScreen() {
   const { colors, font, space } = useTheme();
   const { favs } = useFavorites();
+  const { car, setCarId } = useCar();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [carPickerOpen, setCarPickerOpen] = useState(false);
 
   const u = DATA.user;
   const favStations = DATA.stations.filter((s) => favs.has(s.id));
@@ -158,18 +161,26 @@ export function ProfileScreen() {
             <Icon name="car" size={26} color={colors.primarySoftInk} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: '700', fontSize: 16, color: colors.ink }}>{u.car}</Text>
-            {/* Source hardcodes this spec line rather than deriving it from DATA.cars
-                (it happens to match the "dolphin" entry) — kept literal, same as source. */}
-            <Text style={{ fontFamily: font.mono, fontSize: 12, color: colors.inkFaint }}>44,9 kWh · CCS2 · 291 km</Text>
+            {/* Real selected car (useCar()) instead of the source's hardcoded `u.car`
+                string + hardcoded spec line — every route/trip/charge-time estimate in
+                the app reads this same car, so the profile has to reflect it for real. */}
+            <Text style={{ fontWeight: '700', fontSize: 16, color: colors.ink }}>
+              {car.brand} {car.model}
+            </Text>
+            <Text style={{ fontFamily: font.mono, fontSize: 12, color: colors.inkFaint }}>
+              {car.battery} kWh · {car.connector} · {car.range} km
+            </Text>
           </View>
-          {/* Source's "Trocar" button had no onClick — decorative, no car-swap flow
-              exists yet. Kept non-interactive rather than adding a dead press handler. */}
-          <View
+          <Pressable
+            onPress={() => setCarPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Trocar carro"
+            hitSlop={6}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
+              minHeight: 44,
               paddingVertical: 7,
               paddingHorizontal: 12,
               borderRadius: 100,
@@ -180,7 +191,7 @@ export function ProfileScreen() {
           >
             <Icon name="edit" size={14} color={colors.inkSoft} />
             <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inkSoft }}>Trocar</Text>
-          </View>
+          </Pressable>
         </View>
 
         {/* achievements */}
@@ -276,7 +287,90 @@ export function ProfileScreen() {
       </ScrollView>
 
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <CarPickerSheet
+        open={carPickerOpen}
+        selectedId={car.id}
+        onClose={() => setCarPickerOpen(false)}
+        onPick={(id) => {
+          setCarId(id);
+          setCarPickerOpen(false);
+        }}
+      />
     </View>
+  );
+}
+
+// ---- car picker (new — the source's "Trocar" button was decorative; this is what
+// makes DATA.cars actually reachable after onboarding, so a driver can correct or
+// change their car and have every route/charge-time estimate follow) ----
+
+function CarPickerSheet({
+  open,
+  selectedId,
+  onClose,
+  onPick,
+}: {
+  open: boolean;
+  selectedId: string;
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  const { colors, font, space } = useTheme();
+  if (!open) return null;
+  return (
+    <ModalSheet open={open} onClose={onClose} snapPoints={['70%']} label="Trocar carro">
+      <View style={{ paddingHorizontal: space.pad, paddingTop: 4, gap: 14 }}>
+        <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
+          Qual é o seu carro?
+        </Text>
+        <View style={{ gap: 10 }}>
+          {DATA.cars.map((c) => {
+            const selected = c.id === selectedId;
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => onPick(c.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${c.brand} ${c.model}, ${c.battery} kWh, ${c.range} km de alcance, conector ${c.connector}`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: 14,
+                  borderRadius: space.radiusSm,
+                  backgroundColor: selected ? colors.primarySoft : colors.surface,
+                  borderWidth: selected ? 2 : 1.5,
+                  borderColor: selected ? colors.primary : colors.line,
+                }}
+              >
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    backgroundColor: colors.surface2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name="car" size={22} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '700', fontSize: 15, color: colors.ink }}>
+                    {c.brand} {c.model}
+                  </Text>
+                  <Text style={{ fontFamily: font.mono, fontSize: 11, color: colors.inkFaint, marginTop: 2 }}>
+                    {c.battery} kWh · {c.range} km · {c.connector} · AC {c.ackw} kW / DC {c.dckw} kW
+                  </Text>
+                </View>
+                {selected && <Icon name="checkCircle" size={22} color={colors.primary} fill={colors.primarySoft} />}
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </ModalSheet>
   );
 }
 
