@@ -7,7 +7,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "O Rota usa sua localização para mostrar pontos de recarga perto de você e acompanhar sua posição real durante a navegação e os roteiros."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -15,13 +18,20 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Rota usa sua localização para mostrar pontos de recarga perto de você e acompanhar sua posição real durante a navegação e os roteiros."
+        }
+      ]
     ]
   }
 }
