@@ -14,6 +14,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon, IconName, Seal, SeloRow } from '../icons/Icon';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
+import { estimateDurationLabel, terrainForGuide } from '../../utils/duration';
 import { DATA } from '../../data/data';
 import { Guide, GuideStop } from '../../data/types';
 import { RateFlow, RateResult } from '../rating/RateFlow';
@@ -60,6 +61,11 @@ function CoverPhoto({
 export function GuideMeta({ g, faint = false }: { g: Guide; faint?: boolean }) {
   const { colors } = useTheme();
   const c = faint ? colors.inkFaint : colors.inkSoft;
+  // Computed from real distance instead of DATA.guides[].duration's curated
+  // flavor text, which didn't match the real driving time Google Maps shows for
+  // the same real coordinates (reported: "2h40" in-app vs "4h" in Maps) — see
+  // src/utils/duration.ts.
+  const durationLabel = estimateDurationLabel(g.distance, terrainForGuide(g));
   return (
     <View style={{ flexDirection: 'row', gap: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -68,7 +74,7 @@ export function GuideMeta({ g, faint = false }: { g: Guide; faint?: boolean }) {
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         <Icon name="clock" size={14} color={c} />
-        <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.inkSoft }}>{g.duration}</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: '600', color: colors.inkSoft }}>{durationLabel}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         <Icon name="zap" size={14} color={colors.primary} />
@@ -84,11 +90,12 @@ export function GuideMeta({ g, faint = false }: { g: Guide; faint?: boolean }) {
 
 export function GuideCard({ g, onOpen }: { g: Guide; onOpen: () => void }) {
   const { colors, font, space } = useTheme();
+  const durationLabel = estimateDurationLabel(g.distance, terrainForGuide(g));
   return (
     <Pressable
       onPress={onOpen}
       accessibilityRole="button"
-      accessibilityLabel={`${g.title}, ${g.region}, Selo Flui nível ${g.selo}, ${g.distance} km, ${g.duration}`}
+      accessibilityLabel={`${g.title}, ${g.region}, Selo Flui nível ${g.selo}, ${g.distance} km, ${durationLabel}`}
       style={{ width: '100%', marginBottom: 14, borderRadius: space.radius, backgroundColor: colors.surface, overflow: 'hidden' }}
     >
       <CoverPhoto height={150} radius={0} cover={g.cover} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
@@ -239,7 +246,7 @@ export function GuideDetail({ g, onBack, onStartTrip, onRateGuide, rateGuide, on
 
   const META: [string, string][] = [
     [g.distance + ' km', 'distância'],
-    [g.duration, 'só ida'],
+    [estimateDurationLabel(g.distance, terrainForGuide(g)), 'só ida'],
     [g.recharges === 0 ? '0' : String(g.recharges), g.recharges === 1 ? 'recarga' : 'recargas'],
     [g.season, 'melhor época'],
   ];

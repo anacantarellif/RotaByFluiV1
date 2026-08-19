@@ -12,7 +12,7 @@
 // the source RouteScreen/GuideDetail — grepped, zero occurrences — so it is not
 // wired here (per the porting task, only wire what the source actually calls).
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +25,7 @@ import { focus } from '../theme/tokens';
 import { useToast } from '../state/ToastContext';
 import { useCar } from '../state/CarContext';
 import { batteryAfterDistance, chargeMinutesAtPower, effectiveChargePowerKw } from '../utils/evCharging';
+import { estimateDurationLabel, Terrain, terrainForGuide } from '../utils/duration';
 import { DATA } from '../data/data';
 import { Guide, GuideStop, RouteStop } from '../data/types';
 import { RootStackParamList } from '../navigation/types';
@@ -36,11 +37,13 @@ import { RootStackParamList } from '../navigation/types';
 // for the original Campinas scenario, DATA.guides[].distance for the Guia Flui
 // regions) — no geocoding available, so this is grounded in data we actually
 // have rather than inventing coordinates for arbitrary typed text.
-type PlannerDestination = { id: string; label: string; region: string; distanceKm: number };
+type PlannerDestination = { id: string; label: string; region: string; distanceKm: number; terrain: Terrain };
 
 const DESTINATIONS: PlannerDestination[] = [
-  { id: 'route-default', label: DATA.route.to, region: DATA.route.from, distanceKm: DATA.route.distance },
-  ...DATA.guides.map((g): PlannerDestination => ({ id: g.id, label: g.title, region: g.region, distanceKm: g.distance })),
+  { id: 'route-default', label: DATA.route.to, region: DATA.route.from, distanceKm: DATA.route.distance, terrain: 'highway' },
+  ...DATA.guides.map(
+    (g): PlannerDestination => ({ id: g.id, label: g.title, region: g.region, distanceKm: g.distance, terrain: terrainForGuide(g) })
+  ),
 ];
 
 // Fraction of the trip where a fast-charge stop is placed when one is needed —
@@ -55,16 +58,9 @@ const CHARGE_STATION_POWER = 150; // typical DC fast charger, matches the origin
 // the "always reason about whether a stop is needed" half of the car-aware
 // planner, not just "always insert one stop regardless of car/distance".
 const NO_STOP_MIN_ARRIVAL_PCT = 15;
-const AVG_SPEED_KMH = 75; // blended city/highway estimate, for the duration display only
 
 function effectiveKwLabel(effectiveKw: number, stationKw: number): string {
   return effectiveKw < stationKw ? `carrega a até ${effectiveKw} kW (ponto oferece ${stationKw} kW)` : `carrega na potência máxima do ponto, ${stationKw} kW`;
-}
-
-function fmtDuration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m} min`;
 }
 
 // ---- battery slider ----
@@ -282,7 +278,7 @@ export function RouteScreen() {
   }
 
   const chargeStops = plan.stops.filter((s) => s.kind === 'charge').length;
-  const durationLabel = fmtDuration((destination.distanceKm / AVG_SPEED_KMH) * 60);
+  const durationLabel = estimateDurationLabel(destination.distanceKm, destination.terrain);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -592,8 +588,22 @@ export function RouteScreen() {
   );
 }
 
-// ---- destination picker (new — replaces the source's dead free-text inputs) ----
+// Accent-insensitive substring match, so "sao roque" finds "São Roque".
+function normalizeSearch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
 
+// ---- destination picker (new — replaces the source's dead free-text inputs) ----
+//
+// Search-as-you-type instead of a plain scrollable list: with only 5 curated
+// destinations today a list was fine, but it doesn't scale — once there are many
+// more addresses, requiring a full scroll to find one is exactly the kind of
+// thing an autocomplete search avoids. Filters DESTINATIONS locally (no
+// geocoding backend to query — see the DESTINATIONS comment above), but the UI
+// pattern is the same one a real address-autocomplete would use.
 function DestinationPickerSheet({
   open,
   selectedId,
@@ -606,15 +616,58 @@ function DestinationPickerSheet({
   onPick: (id: string) => void;
 }) {
   const { colors, font, space } = useTheme();
+  const [query, setQuery] = useState('');
+
+  const results = useMemo(() => {
+    const q = normalizeSearch(query.trim());
+    if (!q) return DESTINATIONS;
+    return DESTINATIONS.filter((d) => normalizeSearch(`${d.label} ${d.region}`).includes(q));
+  }, [query]);
+
   if (!open) return null;
   return (
-    <ModalSheet open={open} onClose={onClose} snapPoints={['60%']} label="Escolher destino">
+    <ModalSheet open={open} onClose={onClose} snapPoints={['75%']} label="Escolher destino">
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4, gap: 14 }}>
         <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
           Para onde vamos?
         </Text>
+
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14,
+            borderRadius: space.radiusSm, backgroundColor: colors.surface2, borderWidth: 1.5, borderColor: colors.line,
+          }}
+        >
+          <Icon name="search" size={18} color={colors.inkFaint} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Buscar destino"
+            placeholderTextColor={colors.inkFaint}
+            accessibilityLabel="Buscar destino por nome ou região"
+            autoCorrect={false}
+            style={{ flex: 1, minHeight: 48, fontFamily: font.ui, fontSize: 16, color: colors.ink }}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={8}>
+              <Icon name="x" size={16} color={colors.inkFaint} />
+            </Pressable>
+          )}
+        </View>
+
+        <View
+          accessibilityLiveRegion="polite"
+          style={{ minHeight: 0 }}
+        >
+          <Text style={{ fontSize: 12, color: colors.inkFaint, marginBottom: 2 }}>
+            {results.length === 0
+              ? 'Nenhum destino encontrado'
+              : `${results.length} ${results.length === 1 ? 'destino encontrado' : 'destinos encontrados'}`}
+          </Text>
+        </View>
+
         <View style={{ gap: 10 }}>
-          {DESTINATIONS.map((d) => {
+          {results.map((d) => {
             const selected = d.id === selectedId;
             return (
               <Pressable

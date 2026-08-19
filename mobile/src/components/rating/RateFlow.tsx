@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { useTheme } from '../../theme/ThemeContext';
+import { estimateDurationLabel, terrainForGuide } from '../../utils/duration';
 import { Guide, GuideStop, Station } from '../../data/types';
 
 type Kind = 'station' | 'guide';
@@ -174,8 +175,11 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
 
   const title = isGuide ? (target as Guide).title : (target as Station).name;
   const areaLine = isGuide ? (target as Guide).region : (target as Station).area;
+  // Computed from real distance rather than the guide's curated `duration` text —
+  // see src/utils/duration.ts for why (it didn't match the real driving time
+  // Google Maps shows for the same coordinates).
   const metaLine = isGuide
-    ? `${(target as Guide).distance} km · ${(target as Guide).duration}`
+    ? `${(target as Guide).distance} km · ${estimateDurationLabel((target as Guide).distance, terrainForGuide(target as Guide))}`
     : `${(target as Station).power} kW · ${(target as Station).connectors.join(' · ')}`;
   const rateable: GuideStop[] = isGuide ? (target as Guide).stops.filter((s) => s.kind !== 'start') : [];
 
