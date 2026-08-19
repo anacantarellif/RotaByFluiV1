@@ -40,23 +40,34 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <Themed>
-              <ToastProvider>
-                <FavoritesProvider>
-                  <CarProvider>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <Themed>
+            <ToastProvider>
+              <FavoritesProvider>
+                <CarProvider>
+                  {/* BottomSheetModalProvider must be INSIDE every context provider that
+                      sheet content reads (useTheme, useSafeAreaInsets, useToast, ...).
+                      BottomSheetModal renders through this provider's own portal
+                      container, which is a sibling of wherever <BottomSheetModalProvider>
+                      itself sits in the tree — not of wherever a given ModalSheet is
+                      *used* deep inside a screen. Having it above ThemeProvider (as in
+                      an earlier version of this file) meant every sheet's content had no
+                      ThemeProvider ancestor at all: `useTheme()` inside e.g.
+                      MapPreviewFallback (src/components/handoff/MapsHandoff.tsx) threw
+                      "useTheme must be used within ThemeProvider" the moment a sheet
+                      mounted for the first time (reported: opening a route/roteiro). */}
+                  <BottomSheetModalProvider>
                     <NavigationContainer>
                       <RootNavigator />
                     </NavigationContainer>
-                  </CarProvider>
-                </FavoritesProvider>
-              </ToastProvider>
-            </Themed>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </BottomSheetModalProvider>
+                  </BottomSheetModalProvider>
+                </CarProvider>
+              </FavoritesProvider>
+            </ToastProvider>
+          </Themed>
+        </ThemeProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
