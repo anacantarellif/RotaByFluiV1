@@ -508,10 +508,15 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
             Sits inside the sheet's own content (not the app's tab bar) — since
             ModalSheet now renders via BottomSheetModal's portal, it's always above
             the tab bar. This bottom padding is purely for the device's own
-            safe-area (home indicator / gesture bar), independent of that fix. */}
+            safe-area (home indicator / gesture bar), independent of that fix.
+            `insets.bottom` alone still left "Continuar" flush against the system
+            gesture bar on some Android devices/OEM skins (reported as the button
+            staying cut off even after the tab-bar fix) — floored at 24 so there's
+            always real breathing room above the bar even where the reported inset
+            under-counts it, and scales up further on devices that report more. */}
         <View
           style={{
-            flexShrink: 0, padding: 18, paddingBottom: 18 + insets.bottom, backgroundColor: colors.surface,
+            flexShrink: 0, padding: 18, paddingBottom: 18 + Math.max(24, insets.bottom), backgroundColor: colors.surface,
             shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: -8 }, elevation: 8,
           }}
         >

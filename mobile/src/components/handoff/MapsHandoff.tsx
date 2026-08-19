@@ -136,7 +136,12 @@ export function MapsHandoffSheet({
   const styles = useHandoffStyles();
 
   return (
-    <ModalSheet open onClose={onClose} label={`Como navegar até ${dest.name}`}>
+    // Explicit snap point: this sheet's content (preview + coords + 3 app rows +
+    // remember toggle + 2 buttons) is taller than ModalSheet's default 50% initial
+    // snap, so the "Prévia do Google Maps" box was landing below the fold —
+    // reachable by dragging up, but not visible on open (reported as "a prévia não
+    // aparece"). 85% shows everything without needing a drag first.
+    <ModalSheet open onClose={onClose} snapPoints={['85%']} label={`Como navegar até ${dest.name}`}>
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 18 }}>
         <Text style={[styles.eyebrow, { color: colors.inkFaint }]}>Navegar até</Text>
         <View style={styles.kv}>
@@ -281,7 +286,7 @@ export function RouteHandoffSheet({
   };
 
   return (
-    <ModalSheet open onClose={onClose} label={`Abrir o roteiro ${guide.title} em outro app`}>
+    <ModalSheet open onClose={onClose} snapPoints={['85%']} label={`Abrir o roteiro ${guide.title} em outro app`}>
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 18 }}>
         <Text style={[styles.eyebrow, { color: colors.inkFaint }]}>Levar o roteiro para</Text>
         <Text style={[styles.title, { color: colors.ink, fontFamily: font.display, marginTop: 2, marginBottom: 12 }]}>

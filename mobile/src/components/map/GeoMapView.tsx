@@ -16,7 +16,7 @@ import { ROTA_CONFIG } from '../../config';
 import { DATA } from '../../data/data';
 import { Station, Report } from '../../data/types';
 import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT } from './mapStyles';
-import { ReportPin, StationPin } from './MarkerPins';
+import { pinLabel, ReportPin, StationPin } from './MarkerPins';
 import { MapSkeleton } from '../skeletons/Skeletons';
 
 const DELTA = 0.09;
@@ -80,8 +80,15 @@ export function GeoMapView({
         {showReports &&
           onReport &&
           DATA.reports.map((r) => (
-            <Marker key={r.id} coordinate={{ latitude: r.lat, longitude: r.lng }} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
-              <ReportPin r={r} onPress={onReport} />
+            <Marker
+              key={r.id}
+              coordinate={{ latitude: r.lat, longitude: r.lng }}
+              anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={false}
+              onPress={() => onReport(r)}
+              accessibilityLabel={`Reporte da comunidade: ${r.label}, há ${r.when}. Toque para ver detalhes`}
+            >
+              <ReportPin r={r} />
             </Marker>
           ))}
 
@@ -92,8 +99,9 @@ export function GeoMapView({
             anchor={{ x: 0.5, y: 1 }}
             zIndex={active === st.id ? 10 : 1}
             onPress={() => onPin(st)}
+            accessibilityLabel={pinLabel(st)}
           >
-            <StationPin st={st} active={active === st.id} onPress={onPin} markerStyle={markers} />
+            <StationPin st={st} active={active === st.id} markerStyle={markers} />
           </Marker>
         ))}
 
