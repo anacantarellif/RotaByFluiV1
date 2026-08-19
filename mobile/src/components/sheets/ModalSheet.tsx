@@ -4,16 +4,26 @@
 //
 // Every ported *Sheet component (EventSheet, FilterSheet, MapsHandoffSheet,
 // RouteHandoffSheet, RateFlow, ...) should render its content through this instead
-// of managing its own BottomSheetModal ref, so open/close, backdrop, handle styling,
-// and accessibility (role="dialog" aria-modal equivalent) stay consistent everywhere.
+// of managing its own sheet ref, so open/close, backdrop, handle styling, and
+// accessibility (role="dialog" aria-modal equivalent) stay consistent everywhere.
+//
+// Built on `BottomSheetModal`, not the plain `BottomSheet` this used before —
+// plain `BottomSheet` renders in place in the component tree, so a sheet opened
+// from a screen nested inside a tab (e.g. RateFlow from GuideDetail from
+// RouteScreen) could end up stacked *below* the bottom tab bar, which sits at a
+// higher level as a sibling of the tab navigator's screen content (reported: the
+// rating flow's "Continuar" button was unreachable, hidden behind the tab bar).
+// `BottomSheetModal` renders through a portal mounted at the app root
+// (`BottomSheetModalProvider` in App.tsx), so it's always on top of everything,
+// tab bar included, regardless of how deep the screen that opened it is nested.
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AccessibilityInfo, findNodeHandle, StyleSheet, View } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 
-// `open` mounts/unmounts the sheet; @gorhom/bottom-sheet's `index={0}` prop opens it
-// immediately on mount (animated), and `enablePanDownToClose` + backdrop tap call
-// `onClose`, which the parent uses to flip `open` back to false and unmount us.
+// `open` mounts the modal and immediately calls `.present()`; flipping it back to
+// false calls `.dismiss()`, and once the close animation finishes `onDismiss`
+// fires `onClose`, which the parent uses to unmount us.
 
 export function ModalSheet({
   open,
@@ -31,12 +41,13 @@ export function ModalSheet({
   children: React.ReactNode;
 }) {
   const { colors, space } = useTheme();
-  const ref = useRef<BottomSheet>(null);
+  const ref = useRef<BottomSheetModal>(null);
   const contentRef = useRef<View>(null);
   const points = useMemo(() => snapPoints ?? ['50%', '90%'], [snapPoints]);
 
   useEffect(() => {
     if (!open) return;
+    ref.current?.present();
     const handle = findNodeHandle(contentRef.current);
     if (handle) setTimeout(() => AccessibilityInfo.setAccessibilityFocus(handle), 260);
   }, [open]);
@@ -51,11 +62,11 @@ export function ModalSheet({
   const Body = scroll ? BottomSheetScrollView : BottomSheetView;
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={ref}
       index={0}
       snapPoints={points}
-      onClose={onClose}
+      onDismiss={onClose}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: space.radius, borderTopRightRadius: space.radius }}
@@ -71,6 +82,6 @@ export function ModalSheet({
       >
         {children}
       </Body>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }

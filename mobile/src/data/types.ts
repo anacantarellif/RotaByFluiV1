@@ -117,6 +117,9 @@ export type RouteStop = {
   power?: number;
   time?: number;
   selo?: number;
+  // Real-world coordinates — see the same field on GuideStop for why.
+  lat?: number;
+  lng?: number;
 };
 
 export type GuideStop = {
@@ -129,6 +132,12 @@ export type GuideStop = {
   power?: number;
   selo?: number;
   todo: string;
+  // Real-world coordinates for this stop, so an external-maps handoff
+  // (src/utils/externalNav.ts, RouteHandoffSheet) can pass every stop as a real
+  // waypoint instead of only the itinerary's final destination. Not in the
+  // source (project/app/data.jsx) — added so multi-stop routes actually work.
+  lat?: number;
+  lng?: number;
 };
 
 export type Guide = {
