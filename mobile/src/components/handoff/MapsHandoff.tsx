@@ -26,17 +26,15 @@
 //     RootNavigator resolves the 'Nav' route from anywhere in the Tabs stack.
 //   - `pushToast` is no longer a prop; it comes from `useToast()`.
 //
-// Known limitation (route waypoints): `RouteHandoffSheet` tries to resolve each
-// `guide.stops[].name` to a real `Station` in `DATA.stations` (by normalized name
-// match) to get lat/lng for Google Maps' `waypoints=` param. As of the current
-// `src/data/data.ts`, none of the curated guides' stop names (e.g. "Tremembé",
-// "Taubaté · Via Vale", "Campos do Jordão · Capivari") match any of the 7 real
-// charging stations (`st1`..`st7`) — those are two unrelated fictional datasets in
-// the prototype. So today every guide falls back to a *text* destination (stop
-// name + guide.region passed as a free-text `destination=`/`q=` address, which both
-// Google Maps and Waze deep links accept) with no waypoints/origin. This isn't
-// guessed data — it's a real, documented gap: ship real coordinates on `GuideStop`
-// (or a station-id reference) to get true multi-stop routing.
+// Route waypoints: `RouteHandoffSheet` reads `guide.stops[].lat/lng` directly
+// (see `src/data/types.ts` — `GuideStop.lat`/`lng`, populated in `src/data/data.ts`
+// from the source's own `GUIDE_GEO` table in project/app/maps.jsx, which the
+// original data port hadn't carried over). An earlier version of this file tried
+// to *guess* stop coordinates by fuzzy-matching each stop's name against
+// `DATA.stations` — that never matched anything (the guides' curated stops and the
+// 7 charging stations are two unrelated datasets) and every route silently
+// degraded to a text-only destination with no waypoints. Reading the real
+// coordinates fixes that outright instead of matching harder.
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -46,7 +44,6 @@ import { Icon, Seal } from '../icons/Icon';
 import { GoogleGlyph, WazeGlyph } from '../icons/BrandGlyphs';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
-import { DATA } from '../../data/data';
 import { Station, Guide } from '../../data/types';
 import { RootStackParamList } from '../../navigation/types';
 import { gmapsUrl, wazeUrl, openExternalUrl } from '../../utils/externalNav';
@@ -54,37 +51,10 @@ import { gmapsUrl, wazeUrl, openExternalUrl } from '../../utils/externalNav';
 type LatLng = { lat: number; lng: number };
 type AppId = 'gmaps' | 'waze';
 
-// Combining diacritical marks block (U+0300–U+036F), stripped after NFD
-// decomposition so accented names ("Tremembé", "São Paulo") compare equal to
-// their unaccented form.
-const DIACRITICS_RE = /[̀-ͯ]/g;
-
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(DIACRITICS_RE, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-// Best-effort match of a guide stop's free-text name to a real station in DATA
-// (see the "known limitation" note at the top of this file).
-function stationCoordsForName(name: string): LatLng | null {
-  const target = normalize(name);
-  if (!target) return null;
-  const match = DATA.stations.find((s) => {
-    const n = normalize(s.name);
-    return n === target || n.includes(target) || target.includes(n);
-  });
-  return match ? { lat: match.lat, lng: match.lng } : null;
-}
-
 function guideStopCoords(guide: Guide): LatLng[] {
   const coords: LatLng[] = [];
   for (const s of guide.stops) {
-    const c = stationCoordsForName(s.name);
-    if (c) coords.push(c);
+    if (s.lat != null && s.lng != null) coords.push({ lat: s.lat, lng: s.lng });
   }
   return coords;
 }

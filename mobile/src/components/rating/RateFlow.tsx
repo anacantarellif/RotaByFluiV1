@@ -4,6 +4,7 @@
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { useTheme } from '../../theme/ThemeContext';
@@ -149,6 +150,7 @@ function StopRating({
 
 export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast: _pushToast }: RateFlowProps) {
   const { colors, space, font } = useTheme();
+  const insets = useSafeAreaInsets();
   const isGuide = kind === 'guide';
 
   const [step, setStep] = useState(0);
@@ -498,10 +500,14 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
           </View>
         </View>
 
-        {/* ---------- footer ---------- */}
+        {/* ---------- footer ----------
+            Sits inside the sheet's own content (not the app's tab bar) — since
+            ModalSheet now renders via BottomSheetModal's portal, it's always above
+            the tab bar. This bottom padding is purely for the device's own
+            safe-area (home indicator / gesture bar), independent of that fix. */}
         <View
           style={{
-            flexShrink: 0, padding: 18, paddingBottom: 18, backgroundColor: colors.surface,
+            flexShrink: 0, padding: 18, paddingBottom: 18 + insets.bottom, backgroundColor: colors.surface,
             shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: -8 }, elevation: 8,
           }}
         >
