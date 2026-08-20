@@ -32,6 +32,8 @@ import { useToast } from '../state/ToastContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useWatts } from '../state/WattsContext';
 import { useMissions } from '../state/MissionsContext';
+import { useReviews } from '../state/ReviewsContext';
+import { useCar } from '../state/CarContext';
 import { ROTA_CONFIG } from '../config';
 import { DATA } from '../data/data';
 import { Report, Station } from '../data/types';
@@ -566,6 +568,8 @@ export function MapScreen() {
   const { favs, toggleFav } = useFavorites();
   const { addWatts } = useWatts();
   const { recordRating, recordPhoto, recordReport, recordAreaVisit } = useMissions();
+  const { addReview } = useReviews();
+  const { car } = useCar();
 
   const [active, setActive] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
@@ -887,6 +891,15 @@ export function MapScreen() {
             addWatts(r.watts);
             recordRating();
             if (r.photos > 0) recordPhoto();
+            addReview(rate.st.id, {
+              who: 'Você',
+              when: 'agora',
+              stars: r.stars,
+              body: r.body || 'Avaliação sem comentário.',
+              helpful: 0,
+              car: `${car.brand} ${car.model}`,
+              photoUri: r.photoUris[0],
+            });
             pushToast(r.selo ? `Avaliação + indicação ao Selo Flui · +${r.watts} W` : `Avaliação publicada · +${r.watts} Watts`, 'check', true);
           }}
         />

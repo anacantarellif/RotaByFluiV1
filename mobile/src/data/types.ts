@@ -21,6 +21,8 @@ export type Review = {
   body: string;
   helpful: number;
   car: string;
+  /** Local device URI of a real driver-added photo — user-submitted reviews only. */
+  photoUri?: string;
 };
 
 export type Station = {

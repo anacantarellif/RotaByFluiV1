@@ -14,8 +14,9 @@ import { ModalSheet } from '../sheets/ModalSheet';
 import { StationSkeleton } from '../skeletons/Skeletons';
 import { useDelay } from '../../hooks/useDelay';
 import { ROTA_CONFIG } from '../../config';
-import { Avail, Station } from '../../data/types';
+import { Avail, Review, Station } from '../../data/types';
 import { useCar } from '../../state/CarContext';
+import { useReviews } from '../../state/ReviewsContext';
 import { estimateChargeAt, fmtChargeMinutes } from '../../utils/evCharging';
 import { photoUrl } from '../../utils/placeholderPhoto';
 import { FadeIn } from '../motion/FadeIn';
@@ -336,6 +337,7 @@ function StationDetailContent({
 }) {
   const { colors, font, space } = useTheme();
   const { car } = useCar();
+  const { getReviews } = useReviews();
   const estimate = estimateChargeAt(car, st);
   // Source called `useDelay(latency.detail)` with no dep key; the shared RN
   // hook requires one, so `st.id` is used — replays the loading skeleton
@@ -344,6 +346,10 @@ function StationDetailContent({
   const avLabel = AVAIL[st.avail];
   const avColor = colors[st.avail];
   const pct = Math.round((st.free / st.total) * 100);
+  // Real driver-submitted reviews (RateFlow → ReviewsContext) shown first,
+  // ahead of the station's curated seed reviews — a photo added in RateFlow
+  // shows up here for every user, not just the driver who added it.
+  const reviews: Review[] = [...getReviews(st.id), ...st.reviewsList];
 
   return (
     <View style={{ flex: 1 }}>
@@ -590,7 +596,7 @@ function StationDetailContent({
                   </TouchableOpacity>
                 </View>
 
-                {st.reviewsList.length === 0 && (
+                {reviews.length === 0 && (
                   <View
                     style={{
                       backgroundColor: colors.surface,
@@ -622,7 +628,7 @@ function StationDetailContent({
                   </View>
                 )}
 
-                {st.reviewsList.map((r, i) => {
+                {reviews.map((r, i) => {
                   const initials = r.who
                     .split(' ')
                     .map((s) => s[0])
@@ -661,6 +667,14 @@ function StationDetailContent({
                         <Stars n={r.stars} size={12} />
                       </View>
                       <Text style={{ fontSize: 14, lineHeight: 21, color: colors.ink }}>{r.body}</Text>
+                      {r.photoUri && (
+                        <Image
+                          source={{ uri: r.photoUri }}
+                          accessibilityRole="image"
+                          accessibilityLabel={`Foto adicionada por ${r.who}`}
+                          style={{ width: '100%', height: 160, borderRadius: 12, marginTop: 10, backgroundColor: colors.surface3 }}
+                        />
+                      )}
                       {/* Source renders this as a `<button className="chip">` with no
                           onClick handler at all (a "mark helpful" affordance that was
                           never wired up). Kept as a non-interactive chip rather than

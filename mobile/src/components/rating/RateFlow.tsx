@@ -3,7 +3,8 @@
 // see docs/HANDOFF.md §6 — triggered on arrival at a station, at the end of a
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Animated, Image, Pressable, Text, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
@@ -88,7 +89,16 @@ const GOOD: Record<Kind, [string, string][]> = {
 const LABELS = ['Toque nas estrelas', 'Evite', 'Fraco', 'Ok', 'Muito bom', 'Excelente'];
 const STEP_TITLES = ['Sua nota', 'O que foi bom', 'Pronto'];
 
-export type RateResult = { stars: number; selo: boolean; watts: number; kind: Kind; photos: number };
+export type RateResult = {
+  stars: number;
+  selo: boolean;
+  watts: number;
+  kind: Kind;
+  photos: number;
+  /** Local device URIs of real photos picked in the "Fotos" step, if any. */
+  photoUris: string[];
+  body: string;
+};
 
 export type RateFlowProps = {
   /** Station or Guide (full object from DATA, not an id) being rated. */
@@ -218,8 +228,27 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
   const [tags, setTags] = useState<string[]>([]);
   const [selo, setSelo] = useState(false);
   const [body, setBody] = useState('');
-  const [photos, setPhotos] = useState(0);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [stopStars, setStopStars] = useState<Record<number, number>>({});
+
+  // Picks one photo from the device library and adds it to the "Fotos" step —
+  // the placeholder squares here used to just be a tap counter with no real
+  // image behind them; this one really goes to the device's library. No-op
+  // (silently) if the driver denies photo-library access or cancels the
+  // picker — the step is optional either way.
+  const pickPhoto = async () => {
+    if (photos.length >= 3) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotos((p) => (p.length < 3 ? [...p, result.assets[0].uri] : p));
+    }
+  };
+  const removePhoto = (uri: string) => setPhotos((p) => p.filter((u) => u !== uri));
 
   const firstRender = useRef(true);
   useEffect(() => {
@@ -244,10 +273,10 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
 
   const toggleTag = (t: string) => setTags((v) => (v.includes(t) ? v.filter((x) => x !== t) : [...v, t]));
   const watts =
-    200 + tags.length * 10 + photos * 50 + (body.trim() ? 40 : 0) + Object.keys(stopStars).length * 15 + (selo ? 60 : 0);
+    200 + tags.length * 10 + photos.length * 50 + (body.trim() ? 40 : 0) + Object.keys(stopStars).length * 15 + (selo ? 60 : 0);
 
   const submit = () => setStep(2);
-  const finish = () => onDone({ stars, selo, watts, kind, photos });
+  const finish = () => onDone({ stars, selo, watts, kind, photos: photos.length, photoUris: photos, body });
 
   const canNext = step === 0 ? stars > 0 : true;
 
@@ -458,22 +487,32 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                   Fotos
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                  {Array.from({ length: photos }).map((_, i) => (
-                    <View
-                      key={i}
-                      accessibilityRole="image"
-                      accessibilityLabel={`Foto ${i + 1} adicionada`}
-                      style={{
-                        width: 74, height: 74, borderRadius: 12, backgroundColor: colors.surface3,
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ fontFamily: font.mono, fontSize: 10, color: colors.inkFaint }}>foto {i + 1}</Text>
+                  {photos.map((uri, i) => (
+                    <View key={uri} style={{ width: 74, height: 74 }}>
+                      <Image
+                        source={{ uri }}
+                        accessibilityRole="image"
+                        accessibilityLabel={`Foto ${i + 1} adicionada`}
+                        style={{ width: 74, height: 74, borderRadius: 12, backgroundColor: colors.surface3 }}
+                      />
+                      <Pressable
+                        onPress={() => removePhoto(uri)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remover foto ${i + 1}`}
+                        hitSlop={6}
+                        style={{
+                          position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
+                          backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 2, borderColor: colors.surface,
+                        }}
+                      >
+                        <Icon name="x" size={11} color={colors.bg} />
+                      </Pressable>
                     </View>
                   ))}
-                  {photos < 3 && (
+                  {photos.length < 3 && (
                     <Pressable
-                      onPress={() => setPhotos((p) => p + 1)}
+                      onPress={pickPhoto}
                       accessibilityRole="button"
                       accessibilityLabel="Adicionar foto"
                       style={{
@@ -557,10 +596,10 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inkFaint }}>{tags.length} marcados</Text>
                     </View>
                   )}
-                  {photos > 0 && (
+                  {photos.length > 0 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.line }}>
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.ink }}>Fotos</Text>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inkFaint }}>{photos}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inkFaint }}>{photos.length}</Text>
                     </View>
                   )}
                   {selo && (
