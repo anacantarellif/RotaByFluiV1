@@ -9,7 +9,7 @@
 // Same props, same markers, same callbacks either way — see docs/MAPS.md §1 for the
 // full rationale and what still needs a real key to ship on Android.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useTheme } from '../../theme/ThemeContext';
 import { ROTA_CONFIG } from '../../config';
@@ -18,6 +18,7 @@ import { Station, Report } from '../../data/types';
 import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT } from './mapStyles';
 import { pinLabel, ReportPin, StationPin } from './MarkerPins';
 import { MapSkeleton } from '../skeletons/Skeletons';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const DELTA = 0.09;
 
@@ -118,7 +119,13 @@ export function GeoMapView({
         <Marker
           coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }}
           anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={false}
+          // Unlike the other markers, this one animates (the pulsing "ondinha"
+          // ring below) — react-native-maps only rasterizes a Marker's child
+          // into what's actually shown on the map when tracksViewChanges is
+          // true, so leaving this false (like the static station/report pins)
+          // would freeze the pulse as a single static frame. Just one marker,
+          // so the continuous-recapture cost is negligible.
+          tracksViewChanges
           accessibilityLabel="Sua localização"
         >
           <UserDot />
@@ -130,15 +137,47 @@ export function GeoMapView({
   );
 }
 
+// Ported from styles.css `.userdot .pulse` — an expanding, fading ring behind
+// the solid position dot, looping. Marked `tracksViewChanges={false}` on its
+// <Marker> (GeoMapView above), so this needs to run as a native-driven
+// animation the OS can composite without React re-measuring the marker every
+// frame — `useNativeDriver: true` on both legs does that.
 function UserDot() {
   const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, pulse]);
+
   return (
-    <View
-      style={{
-        width: 18, height: 18, borderRadius: 9,
-        backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
-        shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
-      }}
-    />
+    <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}>
+      {!reduced && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: colors.primary,
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 4.5] }) }],
+          }}
+        />
+      )}
+      <View
+        style={{
+          width: 18, height: 18, borderRadius: 9,
+          backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
+          shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+        }}
+      />
+    </View>
   );
 }

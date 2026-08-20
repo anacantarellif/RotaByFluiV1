@@ -4,6 +4,7 @@
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, Text, TextInput, View } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
@@ -300,9 +301,17 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
           </View>
         </View>
 
-        {/* ---------- scrollable body ---------- */}
-        <View style={{ flex: 1, minHeight: 0 }}>
-          <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 20 }}>
+        {/* ---------- scrollable body ----------
+            This was a plain flex:1 View with no scroll mechanism at all,
+            despite the label — fine when a step's content happened to fit the
+            sheet, but step 0's per-stop rating list can run to 4+ rows (one
+            per guide stop) and RN doesn't clip overflowing content by
+            default, so on a real device with real content the "Continuar"
+            footer below could end up genuinely unreachable, not just visually
+            crowded (reported: needing to scroll to see it, when there was
+            nothing to scroll). BottomSheetScrollView actually gives it
+            somewhere to go, same pattern as StationDetailContent's ficha. */}
+        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 20 }}>
             {step === 0 && (
               <View>
                 <View
@@ -563,8 +572,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 </View>
               </View>
             )}
-          </View>
-        </View>
+        </BottomSheetScrollView>
 
         {/* ---------- footer ----------
             Sits inside the sheet's own content (not the app's tab bar) — since

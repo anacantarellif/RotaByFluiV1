@@ -167,21 +167,8 @@ export function CommunityScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 96 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <View style={{ marginBottom: 14 }}>
           <Text style={{ fontFamily: font.display, fontSize: 30, color: colors.ink }}>Comunidade</Text>
-          {/* Source's header button has no onClick either — same inert-affordance
-              pattern as the feed's like/comment icons above. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Destaques da comunidade"
-            style={{
-              width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface,
-              alignItems: 'center', justifyContent: 'center',
-              shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, elevation: 2,
-            }}
-          >
-            <Icon name="sparkle" size={20} color={colors.primary} />
-          </Pressable>
         </View>
 
         {/* watts banner — source paints a diagonal `primary` → `primary-2` CSS

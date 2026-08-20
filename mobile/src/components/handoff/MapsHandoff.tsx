@@ -23,10 +23,12 @@
 //     `src/data/data.ts` already carries real `lat`/`lng` on every `Station`, so we
 //     read `dest.lat` / `dest.lng` straight off the prop instead of looking anything up.
 //   - The source's `<iframe src={gmapsEmbed(...)}>` (a live, keyless Google Maps
-//     embed) has no RN equivalent without a WebView + billing-enabled API key
-//     (out of scope here — see src/config.ts). We always render what the source
-//     itself used as the *blocked-embed fallback* (`.gmaps-fallback`: brand glyph +
-//     "Prévia do ..." caption) as the permanent preview.
+//     embed) has no RN equivalent without a WebView + billing-enabled API key —
+//     but the app's *own* main map already renders a real Google-provided map on
+//     Android with no key at all (docs/MAPS.md §1), so the preview here
+//     (MiniMapPreview, src/components/map/MiniMapPreview.tsx) reuses that same
+//     setup at a small, non-interactive (liteMode on Android) size instead of
+//     showing a text+glyph placeholder standing in for a real image.
 //   - `pushToast` is no longer a prop; it comes from `useToast()`.
 //
 // Route waypoints: `RouteHandoffSheet` reads `guide.stops[].lat/lng` directly
@@ -43,6 +45,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { Icon, Seal } from '../icons/Icon';
 import { GoogleGlyph, WazeGlyph } from '../icons/BrandGlyphs';
+import { MiniMapPreview } from '../map/MiniMapPreview';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
 import { Station, Guide } from '../../data/types';
@@ -146,7 +149,7 @@ export function MapsHandoffSheet({
           {dest.selo > 0 && <Seal size={16} label={`Selo Flui nível ${dest.selo}`} />}
         </View>
 
-        <MapPreviewFallback caption="Prévia do Google Maps" />
+        <MiniMapPreview points={[{ lat: dest.lat, lng: dest.lng }]} />
 
         <View style={styles.coordsRow}>
           <Icon name="target" size={12} color={colors.inkFaint} />
@@ -256,6 +259,7 @@ export function RouteHandoffSheet({
   const { pushToast } = useToast();
   const [pick, setPick] = useState<AppId>('gmaps');
   const styles = useHandoffStyles();
+  const stopCoords = useMemo(() => guideStopCoords(guide), [guide]);
 
   const routeApps: MapsApp[] = useMemo(
     () => [
@@ -284,7 +288,7 @@ export function RouteHandoffSheet({
           {guide.title}
         </Text>
 
-        <MapPreviewFallback caption="Prévia do trajeto" />
+        <MiniMapPreview points={stopCoords} />
 
         <View style={[styles.routeStopsNote, { backgroundColor: colors.primarySoft }]}>
           <Icon name="route" size={15} color={colors.primary} />
@@ -361,33 +365,6 @@ export function RouteHandoffSheet({
         </Pressable>
       </View>
     </ModalSheet>
-  );
-}
-
-// Stand-in for the source's `.gmaps-preview` iframe — see the file-header comment.
-function MapPreviewFallback({ caption }: { caption: string }) {
-  const { colors, space, font } = useTheme();
-  return (
-    <View
-      style={{
-        height: 132,
-        borderRadius: space.radius > 16 ? 16 : space.radius,
-        overflow: 'hidden',
-        backgroundColor: colors.surface3,
-        borderWidth: 1,
-        borderColor: colors.line,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        marginTop: 10,
-      }}
-      accessible={false}
-      importantForAccessibility="no-hide-descendants"
-    >
-      <GoogleGlyph size={22} />
-      <Text style={{ fontSize: 12.5, fontFamily: font.uiSemibold, color: colors.inkFaint }}>{caption}</Text>
-    </View>
   );
 }
 

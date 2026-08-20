@@ -15,8 +15,8 @@
 // useFavorites()/useToast() instead of being threaded through props, `onNavigate`
 // is gone (MapsHandoffSheet navigates via useNavigation() itself), and `density`/
 // `showReports` read from useTheme() instead of being passed in.
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
 import { AMEN, AVAIL, Stars, StationSheet } from '../components/station/Station';
@@ -26,6 +26,7 @@ import { RateFlow } from '../components/rating/RateFlow';
 import { ModalSheet } from '../components/sheets/ModalSheet';
 import { ListSkeleton } from '../components/skeletons/Skeletons';
 import { useDelay } from '../hooks/useDelay';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../state/ToastContext';
 import { useFavorites } from '../state/FavoritesContext';
@@ -118,6 +119,21 @@ function Chip({
   a11yLabel?: string;
 }) {
   const { colors, font } = useTheme();
+  const reduced = useReducedMotion();
+  // "Fills" from the empty to the selected look instead of snapping — 0 = fully
+  // unselected colors, 1 = fully selected. Interpolating background/border/text
+  // color (RN's Animated supports color strings directly) reads as the chip
+  // filling in, rather than the harder flip a plain conditional style gives.
+  const fill = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(fill, { toValue: active ? 1 : 0, duration: reduced ? 0 : 200, useNativeDriver: false }).start();
+  }, [active, reduced, fill]);
+
+  const backgroundColor = fill.interpolate({ inputRange: [0, 1], outputRange: [colors.surface, colors.primary] });
+  const borderColor = fill.interpolate({ inputRange: [0, 1], outputRange: [colors.line, colors.primary] });
+  const textColor = fill.interpolate({ inputRange: [0, 1], outputRange: [colors.ink, '#ffffff'] });
+
   return (
     <Pressable
       onPress={onPress}
@@ -125,21 +141,24 @@ function Chip({
       accessibilityState={role === 'button' ? undefined : { checked: !!active }}
       accessibilityLabel={a11yLabel ?? label}
       hitSlop={4}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        minHeight: 36,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 100,
-        backgroundColor: active ? colors.primary : colors.surface,
-        borderWidth: 1.5,
-        borderColor: active ? colors.primary : colors.line,
-      }}
     >
-      {iconElement ?? (icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />)}
-      <Text style={{ fontFamily: font.uiSemibold, fontSize: 12.5, color: active ? '#fff' : colors.ink }}>{label}</Text>
+      <Animated.View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          minHeight: 36,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: 100,
+          backgroundColor,
+          borderWidth: 1.5,
+          borderColor,
+        }}
+      >
+        {iconElement ?? (icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />)}
+        <Animated.Text style={{ fontFamily: font.uiSemibold, fontSize: 12.5, color: textColor }}>{label}</Animated.Text>
+      </Animated.View>
     </Pressable>
   );
 }
