@@ -52,6 +52,22 @@ const AVAIL_COLOR_KEY: Record<string, 'ok' | 'busy' | 'off'> = { ok: 'ok', busy:
 // normal (non-absolute) sibling above it so it's included in Marker's
 // measurement too, rather than an absolutely-positioned overlay that would
 // reintroduce the same clipping.
+//
+// That fix alone still left the bottom tip visibly cut off, because
+// diamondBox() is the *tightest* box that contains the diamond — its four
+// tangent points (top/bottom/left/right) touch the box edge with zero
+// margin. The pin bodies used to carry a drop shadow (shadowOffset pushing it
+// down + shadowRadius blur, plus Android's own `elevation` shadow), which
+// paints past the shape's edge — exactly the region this box has no room
+// for, worst at the bottom where the offset adds to the blur. Marker
+// rasterizes to this *measured layout* box, so that shadow got clipped at
+// its edge. Padding the box to make room would mean the anchor ({x:0.5,
+// y:1}, GeoMapView.tsx) — deliberately kept as the simple bottom-of-shape
+// fraction so it stays correct across active/inactive sizes and the crown —
+// would need to move to a fraction below 1.0, throwing off exactly where the
+// pin points on the map. Simplest correct fix: no shadow on the pin bodies:
+// same issue for the 'dot' style below (its box is the circle's own exact
+// size, same zero margin) and for ReportPin.
 function diamondBox(side: number) {
   return Math.ceil(side * Math.SQRT2);
 }
@@ -90,7 +106,6 @@ export function StationPin({
             width: active ? 31 : 26, height: active ? 31 : 26, borderRadius: 16,
             backgroundColor: colors.surface, borderWidth: 3, borderColor,
             alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 6,
           }}
         />
       </View>
@@ -111,7 +126,6 @@ export function StationPin({
             borderTopLeftRadius: side / 2, borderTopRightRadius: side / 2, borderBottomRightRadius: 4, borderBottomLeftRadius: side / 2,
             backgroundColor: colors.surface, borderWidth: 2.5, borderColor,
             alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6,
             transform: [{ rotate: '45deg' }],
           }}
         >
@@ -135,7 +149,6 @@ export function ReportPin({ r }: { r: Report }) {
           borderTopLeftRadius: side / 2, borderTopRightRadius: side / 2, borderBottomRightRadius: 2, borderBottomLeftRadius: side / 2,
           backgroundColor: colors.surface,
           alignItems: 'center', justifyContent: 'center',
-          shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 5,
           transform: [{ rotate: '45deg' }],
         }}
       >
