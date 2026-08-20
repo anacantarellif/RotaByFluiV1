@@ -19,7 +19,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
-import { AMEN, AVAIL, Stars, StationDetail, StationPeek } from '../components/station/Station';
+import { AMEN, AVAIL, Stars, StationSheet } from '../components/station/Station';
 import { EventSheet } from '../components/event/EventSheet';
 import { MapsHandoffSheet } from '../components/handoff/MapsHandoff';
 import { RateFlow } from '../components/rating/RateFlow';
@@ -35,11 +35,12 @@ import { Report, Station } from '../data/types';
 
 // ---- filter data + pure matching logic (ported 1:1 from screens-map.jsx) ----
 
-type Adv = { connectors: string[]; power: number; hours: string; amenities: string[] };
-const EMPTY_ADV: Adv = { connectors: [], power: 0, hours: 'any', amenities: [] };
+type Adv = { connectors: string[]; power: number; hours: string; amenities: string[]; minRating: number; seloOnly: boolean };
+const EMPTY_ADV: Adv = { connectors: [], power: 0, hours: 'any', amenities: [], minRating: 0, seloOnly: false };
 
 const CONNECTORS = ['CCS2', 'Type 2', 'GB/T'];
 const POWER_STEPS = [0, 22, 50, 100, 150];
+const RATING_STEPS = [0, 3.5, 4, 4.5];
 const HOURS_OPTS: { id: string; label: string }[] = [
   { id: 'any', label: 'Qualquer horário' },
   { id: 'open', label: 'Aberto agora' },
@@ -79,10 +80,19 @@ function matchAdv(st: Station, adv: Adv, quick: string[], nowHour: number): bool
   if (adv.power && st.power < adv.power) return false;
   if (!hoursTest(st, adv.hours, nowHour)) return false;
   if (adv.amenities.length && !adv.amenities.every((a) => st.amenities.includes(a))) return false;
+  if (adv.minRating && st.rating < adv.minRating) return false;
+  if (adv.seloOnly && !(st.selo > 0)) return false;
   return true;
 }
 function countAdv(adv: Adv): number {
-  return adv.connectors.length + (adv.power ? 1 : 0) + (adv.hours !== 'any' ? 1 : 0) + adv.amenities.length;
+  return (
+    adv.connectors.length +
+    (adv.power ? 1 : 0) +
+    (adv.hours !== 'any' ? 1 : 0) +
+    adv.amenities.length +
+    (adv.minRating ? 1 : 0) +
+    (adv.seloOnly ? 1 : 0)
+  );
 }
 
 // ---- shared Chip (quick filters, FilterSheet toggles) ----
@@ -90,6 +100,7 @@ function countAdv(adv: Adv): number {
 function Chip({
   label,
   icon,
+  iconElement,
   active,
   onPress,
   role = 'button',
@@ -97,6 +108,8 @@ function Chip({
 }: {
   label: string;
   icon?: IconName;
+  /** Custom leading icon (e.g. the Selo Flui badge) in place of a plain Icon glyph. */
+  iconElement?: React.ReactNode;
   active?: boolean;
   onPress: () => void;
   role?: 'button' | 'switch' | 'radio';
@@ -123,7 +136,7 @@ function Chip({
         borderColor: active ? colors.primary : colors.line,
       }}
     >
-      {icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />}
+      {iconElement ?? (icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />)}
       <Text style={{ fontFamily: font.uiSemibold, fontSize: 12.5, color: active ? '#fff' : colors.ink }}>{label}</Text>
     </Pressable>
   );
@@ -184,6 +197,36 @@ function FilterSheet({
             <Text style={{ fontFamily: font.uiSemibold, fontSize: 13, color: colors.ink }}>Limpar</Text>
           </Pressable>
         </View>
+
+        <FilterSection title="Avaliação">
+          <View
+            style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Nota mínima"
+          >
+            {RATING_STEPS.map((r) => (
+              <Chip
+                key={r}
+                label={r === 0 ? 'Qualquer nota' : `${r.toFixed(1).replace('.', ',')}+`}
+                icon={r === 0 ? undefined : 'star'}
+                active={local.minRating === r}
+                role="radio"
+                a11yLabel={r === 0 ? 'Qualquer nota' : `Nota ${r.toFixed(1).replace('.', ',')} ou mais`}
+                onPress={() => set({ minRating: r })}
+              />
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <Chip
+              label="Selo Flui"
+              iconElement={<Seal size={14} />}
+              active={local.seloOnly}
+              role="switch"
+              a11yLabel="Somente pontos com Selo Flui"
+              onPress={() => set({ seloOnly: !local.seloOnly })}
+            />
+          </View>
+        </FilterSection>
 
         <FilterSection title="Tipo de conector">
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -766,20 +809,11 @@ export function MapScreen() {
         </View>
       )}
 
-      {active && !detail && activeSt && (
-        <StationPeek
+      {active && activeSt && (
+        <StationSheet
           st={activeSt}
-          onOpen={openDetail}
-          onClose={close}
-          onNavigate={(s) => {
-            close();
-            setHandoff(s);
-          }}
-        />
-      )}
-      {active && detail && activeSt && (
-        <StationDetail
-          st={activeSt}
+          mode={detail ? 'detail' : 'peek'}
+          onOpenDetail={openDetail}
           onClose={close}
           onNavigate={(s) => {
             close();

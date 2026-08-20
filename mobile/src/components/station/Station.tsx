@@ -1,10 +1,10 @@
 // Ported from project/app/station.jsx — station peek + full detail (ficha).
-// Exports: Stars, AMEN, AVAIL, StationPeek, StationDetail.
+// Exports: Stars, AMEN, AVAIL, StationSheet (peek + ficha content, one shared
+// ModalSheet instance — see the comment on StationSheet below for why).
 //
-// Both sheets are presented as bottom sheets in the source (`.sheet-scrim` +
-// `.sheet`/`.sheet.peek`, role="dialog" aria-modal) so they're built on the
-// shared <ModalSheet> per PORTING_GUIDE.md ("station detail as a sheet if the
-// source presents it that way").
+// Presented as a bottom sheet in the source (`.sheet-scrim` + `.sheet`/`.sheet.peek`,
+// role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
+// PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -162,26 +162,62 @@ function Spec({ icon, label, value, sub }: { icon: IconName; label: string; valu
   );
 }
 
-// ---- StationPeek ----
+// ---- StationSheet ----
+//
+// Peek and ficha (detail) used to each own their own <ModalSheet>, mounted and
+// unmounted by the parent screen's `{cond && <X/>}` swap between them. That
+// meant tapping "Ver ficha" unmounted one BottomSheetModal and mounted a
+// different one *in the same React commit* — reported as the ficha sometimes
+// just not appearing at all. Rather than keep chasing that race through gorhom's
+// stack-behavior config, this merges both into one <StationSheet> that owns a
+// single, always-mounted <ModalSheet> for as long as a station is active;
+// switching from peek to ficha only changes its `mode` prop (content +
+// snapPoints), which is a normal re-render — the BottomSheetModal instance
+// itself never unmounts, so there's no mount/unmount race to have.
+export type StationSheetMode = 'peek' | 'detail';
 
-export type StationPeekProps = {
+export type StationSheetProps = {
   st: Station;
-  /** Open the full StationDetail sheet for this station. */
-  onOpen: () => void;
+  mode: StationSheetMode;
+  onOpenDetail: () => void;
   onClose: () => void;
   onNavigate: (st: Station) => void;
+  onReport?: (st: Station) => void;
+  onRate?: (st: Station) => void;
+  fav: boolean;
+  onFav: (st: Station) => void;
 };
 
-export function StationPeek({ st, onOpen, onClose, onNavigate }: StationPeekProps) {
+export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onReport, onRate, fav, onFav }: StationSheetProps) {
+  return (
+    <ModalSheet
+      open
+      onClose={onClose}
+      // Source's `.sheet.peek` has no fixed height (CSS auto-sizes to content);
+      // gorhom's BottomSheet needs an explicit snap point, so 32% approximates
+      // the compact peek card's real content height.
+      snapPoints={mode === 'peek' ? ['32%'] : ['94%']}
+      scroll={false}
+      label={mode === 'peek' ? `Prévia: ${st.name}` : `Ficha do ponto ${st.name}`}
+    >
+      {mode === 'peek' ? (
+        <StationPeekContent st={st} onOpen={onOpenDetail} onNavigate={onNavigate} />
+      ) : (
+        <StationDetailContent st={st} onClose={onClose} onNavigate={onNavigate} onReport={onReport} onRate={onRate} fav={fav} onFav={onFav} />
+      )}
+    </ModalSheet>
+  );
+}
+
+// ---- peek content ----
+
+function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: () => void; onNavigate: (st: Station) => void }) {
   const { colors, font, space } = useTheme();
   const avLabel = AVAIL[st.avail];
   const avColor = colors[st.avail];
 
   return (
-    // Source's `.sheet.peek` has no fixed height (CSS auto-sizes to content);
-    // gorhom's BottomSheet needs an explicit snap point, so 32% approximates
-    // the compact peek card's real content height.
-    <ModalSheet open onClose={onClose} snapPoints={['32%']} scroll={false} label={`Prévia: ${st.name}`}>
+    <>
       <Pressable
         onPress={onOpen}
         accessibilityRole="button"
@@ -248,28 +284,29 @@ export function StationPeek({ st, onOpen, onClose, onNavigate }: StationPeekProp
           <Text style={{ fontFamily: font.uiSemibold, fontSize: space.ui, color: colors.ink }}>Ver ficha</Text>
         </TouchableOpacity>
       </View>
-    </ModalSheet>
+    </>
   );
 }
 
-// ---- StationDetail ----
+// ---- ficha (detail) content ----
 
-export type StationDetailProps = {
+function StationDetailContent({
+  st,
+  onClose,
+  onNavigate,
+  onReport,
+  onRate,
+  fav,
+  onFav,
+}: {
   st: Station;
   onClose: () => void;
   onNavigate: (st: Station) => void;
-  /** Opens the community report flow (EventSheet) for this station. Optional
-   * because event-sheet.jsx hasn't been ported yet — wired at the screen
-   * level once it is. */
   onReport?: (st: Station) => void;
-  /** Opens the 3-step rating flow (RateFlow) for this station. Optional for
-   * the same reason — rating.jsx is being ported in parallel. */
   onRate?: (st: Station) => void;
   fav: boolean;
   onFav: (st: Station) => void;
-};
-
-export function StationDetail({ st, onClose, onNavigate, onReport, onRate, fav, onFav }: StationDetailProps) {
+}) {
   const { colors, font, space } = useTheme();
   const { car } = useCar();
   const estimate = estimateChargeAt(car, st);
@@ -282,9 +319,8 @@ export function StationDetail({ st, onClose, onNavigate, onReport, onRate, fav, 
   const pct = Math.round((st.free / st.total) * 100);
 
   return (
-    <ModalSheet open onClose={onClose} snapPoints={['94%']} scroll={false} label={`Ficha do ponto ${st.name}`}>
-      <View style={{ flex: 1 }}>
-        <BottomSheetScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
+    <View style={{ flex: 1 }}>
+      <BottomSheetScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
           {!ready && <StationSkeleton />}
           {ready && (
             <>
@@ -689,6 +725,6 @@ export function StationDetail({ st, onClose, onNavigate, onReport, onRate, fav, 
           </TouchableOpacity>
         </View>
       </View>
-    </ModalSheet>
   );
 }
+

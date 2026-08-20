@@ -40,6 +40,22 @@ const AVAIL_COLOR_KEY: Record<string, 'ok' | 'busy' | 'off'> = { ok: 'ok', busy:
 // Sized somewhat larger than a stock Google Maps pin (~24-28px) so Flui's own
 // points read as clearly distinct from the basemap's own POI icons, while
 // keeping the reference's proportions and outline styling.
+// RN's `rotate` transform doesn't resize the element's own layout box — a 38×38
+// square rotated 45° paints a ~54×54 diamond, visually overflowing its own
+// unrotated 38×38 box by ~8px on every side. react-native-maps measures a
+// Marker's child by that *unrotated layout* box to build its native marker
+// bitmap, so anything painted outside it (here, the diamond's bottom tip) gets
+// clipped off (reported: "os pins estão com a extremidade inferior cortada").
+// Fix: give the rotated shape its own wrapper box sized to its true diagonal
+// (side * √2) instead of the unrotated side length, so nothing it paints falls
+// outside that box's bounds. `diamondBox` below does that; the crown sits as a
+// normal (non-absolute) sibling above it so it's included in Marker's
+// measurement too, rather than an absolutely-positioned overlay that would
+// reintroduce the same clipping.
+function diamondBox(side: number) {
+  return Math.ceil(side * Math.SQRT2);
+}
+
 export function StationPin({
   st,
   active,
@@ -50,12 +66,18 @@ export function StationPin({
   markerStyle?: 'pin' | 'dot';
 }) {
   const { colors } = useTheme();
-  const availColor = colors[AVAIL_COLOR_KEY[st.avail]];
-  const borderColor = st.selo > 0 ? colors.gold : availColor;
+  // Status color (ok/busy/off) always stays on the pin's outline — an earlier
+  // version swapped it for gold whenever the station had a Selo Flui, which
+  // hid a busy/off status behind the badge color. The crown above already
+  // signals "has a selo"; the border's job is purely the live status.
+  const borderColor = colors[AVAIL_COLOR_KEY[st.avail]];
+  const side = active ? 42 : 38;
+  const box = diamondBox(side);
 
   if (markerStyle === 'dot') {
     // `.rota[data-markers="dot"] .pin .body`: same outline-on-surface styling,
-    // just a plain circle instead of the rotated balloon.
+    // just a plain circle instead of the rotated balloon — circles don't
+    // overflow their own bounding box, so no wrapper box needed here.
     return (
       <View style={{ alignItems: 'center' }}>
         {st.selo > 0 && (
@@ -82,17 +104,19 @@ export function StationPin({
           <Seal size={16} />
         </View>
       )}
-      <View
-        style={{
-          width: 38, height: 38,
-          borderTopLeftRadius: 19, borderTopRightRadius: 19, borderBottomRightRadius: 4, borderBottomLeftRadius: 19,
-          backgroundColor: colors.surface, borderWidth: 2.5, borderColor,
-          alignItems: 'center', justifyContent: 'center',
-          shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6,
-          transform: [{ rotate: '45deg' }, { scale: active ? 1.18 : 1 }],
-        }}
-      >
-        <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '700', transform: [{ rotate: '-45deg' }] }}>{st.power}</Text>
+      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={{
+            width: side, height: side,
+            borderTopLeftRadius: side / 2, borderTopRightRadius: side / 2, borderBottomRightRadius: 4, borderBottomLeftRadius: side / 2,
+            backgroundColor: colors.surface, borderWidth: 2.5, borderColor,
+            alignItems: 'center', justifyContent: 'center',
+            shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6,
+            transform: [{ rotate: '45deg' }],
+          }}
+        >
+          <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '700', transform: [{ rotate: '-45deg' }] }}>{st.power}</Text>
+        </View>
       </View>
     </View>
   );
@@ -101,19 +125,23 @@ export function StationPin({
 export function ReportPin({ r }: { r: Report }) {
   const { colors } = useTheme();
   const color = colors[r.colorToken];
+  const side = 30;
+  const box = diamondBox(side);
   return (
-    <View
-      style={{
-        width: 30, height: 30,
-        borderTopLeftRadius: 15, borderTopRightRadius: 15, borderBottomRightRadius: 2, borderBottomLeftRadius: 15,
-        backgroundColor: colors.surface,
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 5,
-        transform: [{ rotate: '45deg' }],
-      }}
-    >
-      <View style={{ transform: [{ rotate: '-45deg' }] }}>
-        <Icon name={r.icon} size={15} color={color} />
+    <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: side, height: side,
+          borderTopLeftRadius: side / 2, borderTopRightRadius: side / 2, borderBottomRightRadius: 2, borderBottomLeftRadius: side / 2,
+          backgroundColor: colors.surface,
+          alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 5,
+          transform: [{ rotate: '45deg' }],
+        }}
+      >
+        <View style={{ transform: [{ rotate: '-45deg' }] }}>
+          <Icon name={r.icon} size={15} color={color} />
+        </View>
       </View>
     </View>
   );
