@@ -1,11 +1,11 @@
-// Ported from project/app/app.jsx (`App`) — onboarding gate + Tabs + full-screen
-// Nav/Trip overlays (source's `nav`/`trip` App-level state).
+// Ported from project/app/app.jsx (`App`) — onboarding gate + Tabs. The source's
+// `nav`/`trip` App-level state (full-screen in-app turn-by-turn) isn't ported —
+// per product decision, navigation always hands off to Google Maps/Waze with
+// real coordinates instead (see MapsHandoffSheet/RouteHandoffSheet).
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
-import { NavScreen } from '../screens/NavScreen';
-import { TripScreen } from '../screens/TripScreen';
 import { TabNavigator } from './TabNavigator';
 import { RootStackParamList } from './types';
 
@@ -36,8 +36,6 @@ export function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={TabNavigator} />
-      <Stack.Screen name="Nav" component={NavScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="Trip" component={TripScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
     </Stack.Navigator>
   );
 }

@@ -1,10 +1,16 @@
 // Ported from project/app/maps.jsx — Google Maps / Waze handoff sheets.
 //
-// MapsHandoffSheet: shown from a station's "Navegar" action, lets the driver pick
-// Google Maps, Waze, or in-app ("Navegar no Rota") turn-by-turn.
+// MapsHandoffSheet: shown from a station's "Navegar" action, lets the driver
+// pick Google Maps or Waze, with the station's real coordinates.
 // RouteHandoffSheet: shown at the end of a roteiro (itinerary), hands the whole
 // route (all stops as waypoints, when we have real coordinates for them — see
 // below) to Google Maps or the final stop to Waze.
+//
+// Per product decision, there's no in-app turn-by-turn option here (the source's
+// "Navegar no Rota" pick, which used to route to a Nav screen) — navigation
+// always hands off to an external app with the correct coordinates instead of
+// being driven inside the app. Simpler, and per the same decision, motion/UX
+// polish elsewhere matters a lot more than an in-app nav screen would.
 //
 // Not a 1:1 port, on purpose (per the porting task):
 //   - The source's `window.open(url, '_blank')` is replaced with real deep links via
@@ -21,9 +27,6 @@
 //     (out of scope here — see src/config.ts). We always render what the source
 //     itself used as the *blocked-embed fallback* (`.gmaps-fallback`: brand glyph +
 //     "Prévia do ..." caption) as the permanent preview.
-//   - The source's `onRotaNav` prop is dropped in favor of `useNavigation()` — per
-//     PORTING_GUIDE.md, navigation plumbing shouldn't be threaded through props,
-//     RootNavigator resolves the 'Nav' route from anywhere in the Tabs stack.
 //   - `pushToast` is no longer a prop; it comes from `useToast()`.
 //
 // Route waypoints: `RouteHandoffSheet` reads `guide.stops[].lat/lng` directly
@@ -37,15 +40,12 @@
 // coordinates fixes that outright instead of matching harder.
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { Icon, Seal } from '../icons/Icon';
 import { GoogleGlyph, WazeGlyph } from '../icons/BrandGlyphs';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
 import { Station, Guide } from '../../data/types';
-import { RootStackParamList } from '../../navigation/types';
 import { gmapsUrl, wazeUrl, openExternalUrl } from '../../utils/externalNav';
 
 type LatLng = { lat: number; lng: number };
@@ -96,13 +96,10 @@ function wazeRouteUrl(guide: Guide): string {
 
 // ---- MapsHandoffSheet -----------------------------------------------------
 
-type MapsHandoffPick = 'gmaps' | 'rota' | 'waze';
-
-type MapsApp = { id: MapsHandoffPick; name: string; sub: string; badge?: string };
+type MapsApp = { id: AppId; name: string; sub: string; badge?: string };
 
 const MAPS_APPS: MapsApp[] = [
   { id: 'gmaps', name: 'Google Maps', sub: 'Trânsito em tempo real', badge: 'Recomendado' },
-  { id: 'rota', name: 'Navegar no Rota', sub: 'Com as paradas do guia' },
   { id: 'waze', name: 'Waze', sub: 'Alertas da comunidade' },
 ];
 
@@ -115,17 +112,11 @@ export function MapsHandoffSheet({
 }) {
   const { colors, space, font } = useTheme();
   const { pushToast } = useToast();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [pick, setPick] = useState<MapsHandoffPick>('gmaps');
+  const [pick, setPick] = useState<AppId>('gmaps');
   const [remember, setRemember] = useState(false);
   const activeApp = MAPS_APPS.find((a) => a.id === pick)!;
 
   const go = async () => {
-    if (pick === 'rota') {
-      onClose();
-      navigation.navigate('Nav', { station: dest });
-      return;
-    }
     const url = pick === 'gmaps' ? gmapsUrl(dest.lat, dest.lng) : wazeUrl(dest.lat, dest.lng);
     const appName = pick === 'gmaps' ? 'Google Maps' : 'Waze';
     const opened = await openExternalUrl(url);
@@ -186,7 +177,7 @@ export function MapsHandoffSheet({
                 ]}
               >
                 <View style={[styles.glyph, { backgroundColor: on ? colors.surface : colors.surface2 }]}>
-                  {a.id === 'gmaps' ? <GoogleGlyph /> : a.id === 'waze' ? <WazeGlyph /> : <Icon name="nav" size={22} color={colors.primary} />}
+                  {a.id === 'gmaps' ? <GoogleGlyph /> : <WazeGlyph />}
                 </View>
                 <View style={styles.txt}>
                   <View style={styles.nmRow}>
@@ -231,12 +222,12 @@ export function MapsHandoffSheet({
         <Pressable
           onPress={go}
           accessibilityRole="button"
-          accessibilityLabel={pick === 'rota' ? 'Iniciar no Rota' : `Abrir no ${activeApp.name}`}
+          accessibilityLabel={`Abrir no ${activeApp.name}`}
           style={[styles.btnPrimary, { backgroundColor: colors.primary, marginTop: 14 }]}
         >
           <Icon name="nav" size={18} color={colors.primaryInk} />
           <Text style={[styles.btnPrimaryText, { color: colors.primaryInk, fontFamily: font.uiSemibold }]}>
-            {pick === 'rota' ? 'Iniciar no Rota' : `Abrir no ${activeApp.name}`}
+            Abrir no {activeApp.name}
           </Text>
         </Pressable>
         <Pressable

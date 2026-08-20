@@ -14,11 +14,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Seal } from '../components/icons/Icon';
 import { GuideBrowser, GuideDetail } from '../components/guide/Guide';
+import { RouteHandoffSheet } from '../components/handoff/MapsHandoff';
 import { ModalSheet } from '../components/sheets/ModalSheet';
 import { useTheme } from '../theme/ThemeContext';
 import { focus } from '../theme/tokens';
@@ -29,7 +28,6 @@ import { batteryAfterDistance, chargeMinutesAtPower, effectiveChargePowerKw } fr
 import { estimateDurationLabel, Terrain, terrainForGuide } from '../utils/duration';
 import { DATA } from '../data/data';
 import { Guide, GuideStop, RouteStop } from '../data/types';
-import { RootStackParamList } from '../navigation/types';
 
 // The planner picks a destination instead of accepting free-text addresses (the
 // source's inputs were uncontrolled `defaultValue` fields that never fed the
@@ -182,7 +180,6 @@ export function RouteScreen() {
   const { pushToast } = useToast();
   const { car } = useCar();
   const { addWatts } = useWatts();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
   const [battery, setBattery] = useState(DATA.route.startBattery);
@@ -191,10 +188,14 @@ export function RouteScreen() {
   const [rateGuide, setRateGuide] = useState<Guide | null>(null);
   const [destId, setDestId] = useState(DESTINATIONS[0].id);
   const [destPickerOpen, setDestPickerOpen] = useState(false);
+  // Planned (non-curated) route's "Iniciar navegação" hand-off — per product
+  // decision there's no in-app turn-by-turn screen; this opens the same
+  // RouteHandoffSheet a curated guide uses, built from a synthetic Guide-shaped
+  // object so the real stop coordinates (destinationEndpoints below) become
+  // real waypoints in Google Maps/Waze.
+  const [plannedHandoff, setPlannedHandoff] = useState<Guide | null>(null);
 
   const destination = DESTINATIONS.find((d) => d.id === destId) ?? DESTINATIONS[0];
-
-  const onStartTrip = (g: Guide) => navigation.navigate('Trip', { guide: g });
 
   // Recomputes every number on the route whenever the driver changes the
   // departure battery, their selected car, or the destination — see the module
@@ -267,7 +268,6 @@ export function RouteScreen() {
       <GuideDetail
         g={guide}
         onBack={() => setGuide(null)}
-        onStartTrip={onStartTrip}
         onRateGuide={setRateGuide}
         rateGuide={rateGuide}
         onCloseRate={() => setRateGuide(null)}
@@ -299,8 +299,10 @@ export function RouteScreen() {
               <Icon name="nav" size={14} color={colors.primary} />
             </View>
             <View style={{ flex: 1, gap: 10 }}>
-              {/* "De" has no free-text entry (no geocoding available) — real GPS
-                  wires in here once NavScreen/TripScreen's live-location work lands. */}
+              {/* "De" has no free-text entry — no geocoding available, and per
+                  product decision there's no in-app navigation to wire a live
+                  position into either; "Iniciar navegação" hands the whole
+                  plan off to Google Maps/Waze instead (see RouteHandoffSheet). */}
               <View
                 style={{
                   padding: 14, borderRadius: 14, backgroundColor: colors.surface2,
@@ -500,15 +502,14 @@ export function RouteScreen() {
 
             <Pressable
               onPress={() =>
-                onStartTrip({
+                setPlannedHandoff({
                   id: 'planned',
                   // Source builds a partial, untyped guide-like object here (plain JS,
-                  // no shape check). The RN `Trip` route requires a full `Guide` (see
-                  // navigation/types.ts), so the fields the source never set for this
+                  // no shape check). RouteHandoffSheet takes a full `Guide` (see
+                  // src/data/types.ts), so the fields the source never set for this
                   // synthetic object (cat/kicker/selo/cover/season/blurb*/tags) get
                   // harmless synthetic defaults below — none of them are read anywhere
-                  // but TripScreen, and TripScreen (out of this port's scope) is still
-                  // a placeholder.
+                  // but the handoff sheet, which only reads title/region/distance/stops.
                   cat: 'bate-volta',
                   kicker: 'Rota planejada',
                   selo: 0,
@@ -587,6 +588,8 @@ export function RouteScreen() {
           setDestPickerOpen(false);
         }}
       />
+
+      {plannedHandoff && <RouteHandoffSheet guide={plannedHandoff} onClose={() => setPlannedHandoff(null)} />}
     </View>
   );
 }

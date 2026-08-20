@@ -230,7 +230,6 @@ export function GuideTimeline({ stops }: { stops: GuideStop[] }) {
 export type GuideDetailProps = {
   g: Guide;
   onBack: () => void;
-  onStartTrip?: (g: Guide) => void;
   onRateGuide?: (g: Guide) => void;
   /** Lifted to the caller (RouteScreen), same as the source — RateFlow is only
    * mounted while this holds the guide currently being rated. */
@@ -239,7 +238,7 @@ export type GuideDetailProps = {
   onRateDone: (r: RateResult) => void;
 };
 
-export function GuideDetail({ g, onBack, onStartTrip, onRateGuide, rateGuide, onCloseRate, onRateDone }: GuideDetailProps) {
+export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, onRateDone }: GuideDetailProps) {
   const { colors, font, space } = useTheme();
   const { pushToast } = useToast();
   const [mapsOut, setMapsOut] = useState(false);
@@ -346,10 +345,13 @@ export function GuideDetail({ g, onBack, onStartTrip, onRateGuide, rateGuide, on
             </Text>
             <GuideTimeline stops={g.stops} />
 
+            {/* Per product decision there's no in-app turn-by-turn screen — this
+                used to be two buttons (start in-app vs. hand off to Maps/Waze);
+                now there's only one real path, so one button. */}
             <Pressable
-              onPress={() => onStartTrip?.(g)}
+              onPress={() => setMapsOut(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Iniciar o roteiro ${g.title}`}
+              accessibilityLabel={`Iniciar o roteiro ${g.title} no Google Maps ou Waze`}
               style={{
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 50,
                 marginTop: 8, borderRadius: 999, paddingVertical: 16, backgroundColor: colors.primary,
@@ -358,20 +360,6 @@ export function GuideDetail({ g, onBack, onStartTrip, onRateGuide, rateGuide, on
               <Icon name="nav" size={18} color={colors.primaryInk} />
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>
                 Iniciar este roteiro
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setMapsOut(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Abrir roteiro no Google Maps ou Waze"
-              style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46,
-                marginTop: 10, borderRadius: 999, paddingVertical: 13, borderWidth: 1.5, borderColor: colors.lineStrong,
-              }}
-            >
-              <Icon name="nav" size={17} color={colors.ink} />
-              <Text style={{ fontFamily: font.uiSemibold, fontSize: 15, fontWeight: '700', color: colors.ink }}>
-                Abrir no Google Maps ou Waze
               </Text>
             </Pressable>
             <Pressable
