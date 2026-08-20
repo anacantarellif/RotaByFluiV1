@@ -31,6 +31,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../state/ToastContext';
 import { useCar } from '../state/CarContext';
+import { useWatts } from '../state/WattsContext';
 import { useLiveLocation } from '../hooks/useLiveLocation';
 import { LocationNotice } from '../components/LocationNotice';
 import { Icon, Seal } from '../components/icons/Icon';
@@ -127,6 +128,7 @@ export function NavScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { pushToast } = useToast();
   const { car } = useCar();
+  const { addWatts } = useWatts();
 
   const [demoMode, setDemoMode] = useState(false);
   const live = useLiveLocation(!demoMode);
@@ -479,6 +481,7 @@ export function NavScreen({ route, navigation }: Props) {
           onClose={() => setRating(false)}
           onDone={(r) => {
             setRating(false);
+            addWatts(r.watts);
             pushToast(`Avaliação publicada · +${r.watts} Watts`, 'check');
             navigation.goBack();
           }}

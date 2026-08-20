@@ -5,8 +5,8 @@
 // Presented as a bottom sheet in the source (`.sheet-scrim` + `.sheet`/`.sheet.peek`,
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
-import React from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
@@ -17,6 +17,8 @@ import { ROTA_CONFIG } from '../../config';
 import { Avail, Station } from '../../data/types';
 import { useCar } from '../../state/CarContext';
 import { estimateChargeAt, fmtChargeMinutes } from '../../utils/evCharging';
+import { photoUrl } from '../../utils/placeholderPhoto';
+import { FadeIn } from '../motion/FadeIn';
 
 // ---- shared data maps (mirror the source's module-level AMEN / AVAIL) ----
 
@@ -78,24 +80,34 @@ export function Stars({ n, size = 14, label = true }: StarsProps) {
 
 // ---- shared bits (local helpers, not exported by the source either) ----
 
-// `.ph` photo placeholder. CSS paints a repeating diagonal-stripe texture here
-// (`repeating-linear-gradient`); RN has no gradient primitive without adding
-// expo-linear-gradient (not a current dependency), so this is a flat fill —
-// visually close enough for a placeholder block.
+// `.ph` photo placeholder in the source paints a repeating diagonal-stripe
+// texture with no real image behind it at all — there's no actual photography
+// of these fictional/composite stations to bundle. When `seed` is given this
+// now loads a real (stock) photo instead, deterministic per seed so a given
+// station always shows the same photo rather than a different one on every
+// open (see src/utils/placeholderPhoto.ts). Falls back to the flat caption box
+// — never a broken-image icon — while loading and if the request fails
+// (offline, first frame before it resolves).
 function Photo({
   height,
   radius,
   caption,
   a11yLabel,
+  seed,
   children,
 }: {
   height: number;
   radius: number;
   caption: string;
   a11yLabel: string;
+  seed?: string;
   children?: React.ReactNode;
 }) {
   const { colors, font } = useTheme();
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const showPhoto = !!seed && !failed;
+
   return (
     <View
       style={{
@@ -105,26 +117,41 @@ function Photo({
         overflow: 'hidden',
       }}
     >
-      <View
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={a11yLabel}
-        style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
-      >
-        <View style={{ backgroundColor: colors.surface, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 6 }}>
-          <Text
-            style={{
-              fontFamily: font.mono,
-              fontSize: 10,
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              color: colors.inkFaint,
-            }}
-          >
-            {caption}
-          </Text>
+      {showPhoto && (
+        <Image
+          source={{ uri: photoUrl(seed!, 500, Math.round((500 * height) / 240)) }}
+          accessibilityIgnoresInvertColors
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      )}
+      {(!showPhoto || !loaded) && (
+        <View
+          accessible={!showPhoto}
+          accessibilityRole="image"
+          accessibilityLabel={a11yLabel}
+          style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
+        >
+          <View style={{ backgroundColor: colors.surface, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 6 }}>
+            <Text
+              style={{
+                fontFamily: font.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                color: colors.inkFaint,
+              }}
+            >
+              {caption}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
+      {showPhoto && loaded && (
+        <View accessible accessibilityRole="image" accessibilityLabel={a11yLabel} style={StyleSheet.absoluteFill} />
+      )}
       {children}
     </View>
   );
@@ -225,7 +252,7 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
         style={{ paddingHorizontal: space.pad, paddingTop: 6 }}
       >
         <View style={{ flexDirection: 'row', gap: 14 }}>
-          <Photo height={84} radius={16} caption="foto" a11yLabel={`Foto do ponto ${st.name}`} />
+          <Photo height={84} radius={16} caption="foto" a11yLabel={`Foto do ponto ${st.name}`} seed={st.id} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <Dot color={avColor} />
@@ -323,7 +350,7 @@ function StationDetailContent({
       <BottomSheetScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
           {!ready && <StationSkeleton />}
           {ready && (
-            <>
+            <FadeIn>
               {/* hero */}
               <View style={{ paddingHorizontal: space.pad }}>
                 <Photo
@@ -331,6 +358,7 @@ function StationDetailContent({
                   radius={20}
                   caption="foto da estação · 3 imagens"
                   a11yLabel={`Fotos do ponto ${st.name}, 3 imagens`}
+                  seed={`${st.id}-hero`}
                 >
                   <View style={{ position: 'absolute', top: 12, right: 12, flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
@@ -659,7 +687,7 @@ function StationDetailContent({
                   );
                 })}
               </View>
-            </>
+            </FadeIn>
           )}
         </BottomSheetScrollView>
 

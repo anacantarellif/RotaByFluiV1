@@ -100,6 +100,16 @@ export function GeoMapView({
             zIndex={active === st.id ? 10 : 1}
             onPress={() => onPin(st)}
             accessibilityLabel={pinLabel(st)}
+            // Station pins were still reported clipped after sizing their
+            // wrapper box to the rotated shape's true diagonal — the JS layout
+            // fix was correct, but with tracksViewChanges left at its default,
+            // react-native-maps rasterizes the marker into a native bitmap
+            // *once*, which on Android can happen before that layout has
+            // actually settled, baking in a clipped snapshot that then never
+            // gets recaptured. True here keeps it re-rasterizing from the
+            // current (correct) layout — a handful of station pins is cheap
+            // enough that the usual perf reason to avoid this doesn't apply.
+            tracksViewChanges
           >
             <StationPin st={st} active={active === st.id} markerStyle={markers} />
           </Marker>

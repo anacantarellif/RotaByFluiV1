@@ -79,9 +79,12 @@ export function ModalSheet({
       // consigo ver a ficha" / the Maps preview sheet not appearing). 'replace'
       // makes that handoff an explicit dismiss-then-present instead.
       stackBehavior="replace"
-      // Keeps every sheet's own frame (not just its content padding) above the
-      // system bottom bar/gesture area — more reliable across devices than
-      // compensating with extra padding inside each sheet's own footer.
+      // Only affects where the sheet rests *off-screen* once dismissed — not
+      // the visible content area while it's open (that's the `Body` style
+      // below). Kept for a clean dismiss animation, but on its own this was
+      // mistakenly assumed to also keep open content clear of the system bar,
+      // which it doesn't — the "Continuar" button stayed cut off on 3-button
+      // nav devices even with this set.
       bottomInset={insets.bottom}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: space.radius, borderTopRightRadius: space.radius }}
@@ -89,9 +92,17 @@ export function ModalSheet({
       accessibilityViewIsModal
       accessibilityLabel={label}
     >
+      {/* A sheet's bottom edge always sits flush with the true screen bottom
+          (behind the system nav bar in Expo's edge-to-edge Android mode) —
+          the snap point only controls how tall the sheet is, not where its
+          bottom edge is. Pulling `bottom` in by `insets.bottom` shrinks the
+          content area itself to stop above the bar, so anything laid out with
+          flex — including a sticky footer button pinned to the end of a
+          flex:1 column, e.g. RateFlow's "Continuar" — lands above it instead
+          of needing every sheet to separately pad for the inset itself. */}
       <Body
         ref={contentRef as any}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { bottom: insets.bottom }]}
         contentContainerStyle={{ paddingBottom: 24 }}
         accessible={false}
       >

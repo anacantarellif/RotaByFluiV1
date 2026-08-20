@@ -16,7 +16,7 @@
 // is gone (MapsHandoffSheet navigates via useNavigation() itself), and `density`/
 // `showReports` read from useTheme() instead of being passed in.
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
 import { AMEN, AVAIL, Stars, StationSheet } from '../components/station/Station';
@@ -29,9 +29,11 @@ import { useDelay } from '../hooks/useDelay';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../state/ToastContext';
 import { useFavorites } from '../state/FavoritesContext';
+import { useWatts } from '../state/WattsContext';
 import { ROTA_CONFIG } from '../config';
 import { DATA } from '../data/data';
 import { Report, Station } from '../data/types';
+import { photoUrl } from '../utils/placeholderPhoto';
 
 // ---- filter data + pure matching logic (ported 1:1 from screens-map.jsx) ----
 
@@ -342,12 +344,19 @@ const REPORT_TYPES: { id: string; icon: IconName; colorToken: 'ok' | 'busy' | 'o
   { id: 'foto', icon: 'camera', colorToken: 'primary', label: 'Adicionar foto' },
 ];
 
+const REPORT_WATTS = 40;
+
+// Reports are always tied to the station they're about — there's no longer a
+// standalone "+" fab that lets you file one without picking a point first
+// (that produced reports nothing could be done with: no station to show the
+// report against on the map, in a list, or in that station's own ficha). The
+// only entry point now is the ficha's own report button, so `st` is required.
 function ReportSheet({
   st,
   onClose,
   onDone,
 }: {
-  st?: Station;
+  st: Station;
   onClose: () => void;
   onDone: (r: (typeof REPORT_TYPES)[number]) => void;
 }) {
@@ -355,7 +364,7 @@ function ReportSheet({
   const [sel, setSel] = useState<string | null>(null);
 
   return (
-    <ModalSheet open onClose={onClose} label="Reportar situação">
+    <ModalSheet open onClose={onClose} label={`Reportar situação em ${st.name}`}>
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4 }}>
         <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', color: colors.inkFaint, marginBottom: 4 }}>
           Reporte da comunidade
@@ -363,9 +372,7 @@ function ReportSheet({
         <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 23, marginBottom: 4, color: colors.ink }}>
           O que está rolando?
         </Text>
-        <Text style={{ fontSize: 14, marginBottom: 18, color: colors.inkSoft }}>
-          {st ? st.name : 'Ponto próximo'} · ajude quem vem depois
-        </Text>
+        <Text style={{ fontSize: 14, marginBottom: 18, color: colors.inkSoft }}>{st.name} · ajude quem vem depois</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }} accessibilityRole="radiogroup" accessibilityLabel="Tipo de reporte">
           {REPORT_TYPES.map((r) => {
             const on = sel === r.id;
@@ -423,7 +430,7 @@ function ReportSheet({
             opacity: sel ? 1 : 0.5,
           }}
         >
-          <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, color: colors.primaryInk }}>Enviar reporte · +40 Watts</Text>
+          <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, color: colors.primaryInk }}>Enviar reporte · +{REPORT_WATTS} Watts</Text>
         </Pressable>
       </View>
     </ModalSheet>
@@ -452,9 +459,12 @@ function ListRow({ st, onOpen }: { st: Station; onOpen: (st: Station) => void })
         alignItems: 'center',
       }}
     >
-      <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontFamily: font.mono, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: colors.inkFaint }}>foto</Text>
-      </View>
+      <Image
+        source={{ uri: photoUrl(st.id, 128, 128) }}
+        accessibilityIgnoresInvertColors
+        style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: colors.surface2 }}
+        resizeMode="cover"
+      />
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {st.selo > 0 && <Seal size={14} />}
@@ -534,10 +544,11 @@ export function MapScreen() {
   const { colors, font, showReports } = useTheme();
   const { pushToast } = useToast();
   const { favs, toggleFav } = useFavorites();
+  const { addWatts } = useWatts();
 
   const [active, setActive] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
-  const [report, setReport] = useState<{ st?: Station } | null>(null);
+  const [report, setReport] = useState<{ st: Station } | null>(null);
   const [rate, setRate] = useState<{ st: Station } | null>(null);
   const [quick, setQuick] = useState<string[]>([]);
   const [adv, setAdv] = useState<Adv>(EMPTY_ADV);
@@ -579,6 +590,19 @@ export function MapScreen() {
   const close = () => {
     setActive(null);
     setDetail(false);
+  };
+
+  // Closes the station sheet, then opens a *different* sheet (handoff/report/
+  // rate) shortly after, instead of both in the same tap. Mounting a new
+  // ModalSheet in the same commit that unmounts another was the same race
+  // that made the ficha itself unreliable (see StationSheet in Station.tsx) —
+  // these three transitions couldn't be fixed the same way (merging into one
+  // persistent sheet, since MapsHandoffSheet/ReportSheet/RateFlow are each a
+  // genuinely different sheet, not a mode of the station sheet), so they get
+  // the same "let the old one actually finish closing first" delay instead.
+  const closeStationThen = (fn: () => void) => {
+    close();
+    setTimeout(fn, 280);
   };
 
   return (
@@ -764,25 +788,6 @@ export function MapScreen() {
           >
             <Icon name="crosshair" size={20} color={colors.primary} />
           </Pressable>
-          <Pressable
-            onPress={() => setReport({})}
-            accessibilityRole="button"
-            accessibilityLabel="Reportar situação em um ponto"
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: colors.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <Icon name="plus" size={26} color={colors.primaryInk} />
-          </Pressable>
         </View>
       )}
 
@@ -815,12 +820,9 @@ export function MapScreen() {
           mode={detail ? 'detail' : 'peek'}
           onOpenDetail={openDetail}
           onClose={close}
-          onNavigate={(s) => {
-            close();
-            setHandoff(s);
-          }}
-          onReport={(s) => setReport({ st: s })}
-          onRate={(s) => setRate({ st: s })}
+          onNavigate={(s) => closeStationThen(() => setHandoff(s))}
+          onReport={(s) => closeStationThen(() => setReport({ st: s }))}
+          onRate={(s) => closeStationThen(() => setRate({ st: s }))}
           fav={favs.has(activeSt.id)}
           onFav={(s) => toggleFav(s.id)}
         />
@@ -831,6 +833,7 @@ export function MapScreen() {
           onClose={() => setReport(null)}
           onDone={(r) => {
             setReport(null);
+            addWatts(REPORT_WATTS);
             pushToast(`Reporte enviado · ${r.label}`, 'check');
           }}
         />
@@ -856,6 +859,7 @@ export function MapScreen() {
           onClose={() => setRate(null)}
           onDone={(r) => {
             setRate(null);
+            addWatts(r.watts);
             pushToast(r.selo ? `Avaliação + indicação ao Selo Flui · +${r.watts} W` : `Avaliação publicada · +${r.watts} Watts`, 'check');
           }}
         />

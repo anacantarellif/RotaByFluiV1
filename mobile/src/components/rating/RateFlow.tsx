@@ -3,12 +3,72 @@
 // see docs/HANDOFF.md §6 — triggered on arrival at a station, at the end of a
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Animated, Pressable, Text, TextInput, View } from 'react-native';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
+import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { useTheme } from '../../theme/ThemeContext';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { estimateDurationLabel, terrainForGuide } from '../../utils/duration';
 import { Guide, GuideStop, Station } from '../../data/types';
+
+// Small sparkle burst around the Selo Flui badge when the driver turns the
+// indication on — a delightful flourish for what's otherwise a fairly plain
+// switch, and a concrete, positive interaction to animate rather than the
+// state changes covered elsewhere (loading, press feedback). No-ops entirely
+// under reduced-motion.
+const SPARKLE_OFFSETS = [
+  { x: -18, y: -16 },
+  { x: 16, y: -18 },
+  { x: -14, y: 14 },
+  { x: 18, y: 10 },
+];
+
+function SeloSparkles({ active }: { active: boolean }) {
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const anims = useRef(SPARKLE_OFFSETS.map(() => new Animated.Value(0))).current;
+  const wasActive = useRef(active);
+
+  useEffect(() => {
+    if (active && !wasActive.current && !reduced) {
+      anims.forEach((v) => v.setValue(0));
+      Animated.stagger(
+        55,
+        anims.map((v) => Animated.timing(v, { toValue: 1, duration: 560, useNativeDriver: true }))
+      ).start();
+    }
+    wasActive.current = active;
+  }, [active, reduced, anims]);
+
+  if (reduced) return null;
+
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 14, top: 14, width: 30, height: 30 }}>
+      {anims.map((v, i) => {
+        const { x, y } = SPARKLE_OFFSETS[i];
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: 15,
+              top: 15,
+              opacity: v.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+              transform: [
+                { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, x] }) },
+                { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, y] }) },
+                { scale: v.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.4, 1, 0.6] }) },
+              ],
+            }}
+          >
+            <Icon name="sparkle" size={12} color={colors.gold} />
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}
 
 type Kind = 'station' | 'guide';
 
@@ -311,38 +371,42 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 )}
 
                 {!isGuide && (
-                  <Pressable
-                    onPress={() => setSelo(!selo)}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: selo }}
-                    accessibilityLabel="Indicar para o Selo Flui"
-                    style={{
-                      width: '100%', marginTop: 22, flexDirection: 'row', alignItems: 'center', gap: 14,
-                      padding: 14, borderRadius: space.radiusSm,
-                      backgroundColor: selo ? colors.goldSoft : colors.surface,
-                      borderWidth: selo ? 2 : 1.5, borderColor: selo ? colors.gold : colors.line,
-                    }}
-                  >
-                    <Seal size={30} color={colors.gold} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: '700', fontSize: 14.5, color: colors.ink }}>Indicar para o Selo Flui</Text>
-                      <Text style={{ fontSize: 12, color: colors.inkFaint }}>Sua indicação alimenta a curadoria do guia</Text>
-                    </View>
-                    <View
+                  <View style={{ width: '100%', marginTop: 22, position: 'relative' }}>
+                    <SeloSparkles active={selo} />
+                    <AnimatedPressable
+                      onPress={() => setSelo(!selo)}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: selo }}
+                      accessibilityLabel="Indicar para o Selo Flui"
+                      scaleTo={0.98}
                       style={{
-                        width: 24, height: 24, borderRadius: 8, flexShrink: 0,
-                        backgroundColor: selo ? colors.gold : colors.surface3,
-                        alignItems: 'center', justifyContent: 'center',
+                        flexDirection: 'row', alignItems: 'center', gap: 14,
+                        padding: 14, borderRadius: space.radiusSm,
+                        backgroundColor: selo ? colors.goldSoft : colors.surface,
+                        borderWidth: selo ? 2 : 1.5, borderColor: selo ? colors.gold : colors.line,
                       }}
                     >
-                      {/* Source hardcodes '#fff' for this checkmark too (inline JSX prop, not a
-                          CSS var) — it needs a fixed light mark against the gold badge in both
-                          themes, and no existing token models "ink that always reads light on
-                          gold", so the literal is kept rather than picking a token that would be
-                          wrong in one theme. */}
-                      {selo && <Icon name="check" size={14} color="#fff" />}
-                    </View>
-                  </Pressable>
+                      <Seal size={30} color={colors.gold} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: '700', fontSize: 14.5, color: colors.ink }}>Indicar para o Selo Flui</Text>
+                        <Text style={{ fontSize: 12, color: colors.inkFaint }}>Sua indicação alimenta a curadoria do guia</Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                          backgroundColor: selo ? colors.gold : colors.surface3,
+                          alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        {/* Source hardcodes '#fff' for this checkmark too (inline JSX prop, not a
+                            CSS var) — it needs a fixed light mark against the gold badge in both
+                            themes, and no existing token models "ink that always reads light on
+                            gold", so the literal is kept rather than picking a token that would be
+                            wrong in one theme. */}
+                        {selo && <Icon name="check" size={14} color="#fff" />}
+                      </View>
+                    </AnimatedPressable>
+                  </View>
                 )}
               </View>
             )}
@@ -518,7 +582,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
           }}
         >
           {step === 0 && (
-            <Pressable
+            <AnimatedPressable
               disabled={!canNext}
               onPress={() => setStep(1)}
               accessibilityRole="button"
@@ -530,11 +594,11 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
               }}
             >
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>Continuar</Text>
-            </Pressable>
+            </AnimatedPressable>
           )}
           {step === 1 && (
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => setStep(0)}
                 accessibilityRole="button"
                 accessibilityLabel="Voltar para a nota"
@@ -544,8 +608,8 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 }}
               >
                 <Icon name="chevL" size={18} color={colors.ink} />
-              </Pressable>
-              <Pressable
+              </AnimatedPressable>
+              <AnimatedPressable
                 onPress={submit}
                 accessibilityRole="button"
                 accessibilityLabel={`Publicar avaliação, mais ${watts} watts`}
@@ -557,11 +621,11 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>
                   Publicar · +{watts} W
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             </View>
           )}
           {step === 2 && (
-            <Pressable
+            <AnimatedPressable
               onPress={finish}
               accessibilityRole="button"
               accessibilityLabel="Concluir"
@@ -571,7 +635,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
               }}
             >
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>Concluir</Text>
-            </Pressable>
+            </AnimatedPressable>
           )}
         </View>
       </View>

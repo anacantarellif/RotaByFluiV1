@@ -20,6 +20,7 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { MarkerStyle, useTheme } from '../theme/ThemeContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useCar } from '../state/CarContext';
+import { useWatts } from '../state/WattsContext';
 import { Icon } from '../components/icons/Icon';
 import { BrandMark } from '../components/BrandMark';
 import { ModalSheet } from '../components/sheets/ModalSheet';
@@ -30,6 +31,7 @@ export function ProfileScreen() {
   const { colors, font, space } = useTheme();
   const { favs } = useFavorites();
   const { car, setCarId } = useCar();
+  const { watts } = useWatts();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [carPickerOpen, setCarPickerOpen] = useState(false);
 
@@ -102,7 +104,7 @@ export function ProfileScreen() {
               {u.title} · {u.handle}
             </Text>
             <Text style={{ fontFamily: font.mono, fontSize: 13, fontWeight: '600', color: colors.primary, marginTop: 4 }}>
-              {u.watts.toLocaleString('pt-BR')} Watts
+              {watts.toLocaleString('pt-BR')} Watts
             </Text>
           </View>
         </View>
