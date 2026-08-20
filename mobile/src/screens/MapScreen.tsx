@@ -631,29 +631,48 @@ export function MapScreen() {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 12, paddingRight: 14 }}>
-          <Chip
-            label={`Filtros${advCount ? ` · ${advCount}` : ''}`}
-            icon="filter"
-            active={!!advCount}
-            onPress={() => setShowFilters(true)}
-            a11yLabel={`Abrir filtros${advCount ? `, ${advCount} ativos` : ''}`}
-          />
-          {QUICK.map((f) => (
-            <Chip key={f.id} label={f.label} active={quick.includes(f.id)} role="switch" onPress={() => toggleQuick(f.id)} />
-          ))}
-        </ScrollView>
+        {/* Backing card for the chips + result-count row: with just the search
+            pill above, these floated directly over the map with nothing behind
+            them — fine for the chips' own pill backgrounds, but the plain text
+            of the "N pontos encontrados / Limpar tudo" row (shown once a filter
+            is active) had no backing at all and was hard to read over map
+            imagery. Wrapping both in one surface card fixes that and reads as a
+            single toolbar instead of loose floating pieces. */}
+        <View
+          style={{
+            marginTop: 12, backgroundColor: colors.surface, borderRadius: 20, padding: 10,
+            shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+          }}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <Chip
+              label={`Filtros${advCount ? ` · ${advCount}` : ''}`}
+              icon="filter"
+              active={!!advCount}
+              onPress={() => setShowFilters(true)}
+              a11yLabel={`Abrir filtros${advCount ? `, ${advCount} ativos` : ''}`}
+            />
+            {QUICK.map((f) => (
+              <Chip key={f.id} label={f.label} active={quick.includes(f.id)} role="switch" onPress={() => toggleQuick(f.id)} />
+            ))}
+          </ScrollView>
 
-        {anyFilter && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingHorizontal: 4 }}>
-            <Text accessibilityLiveRegion="polite" style={{ fontSize: 12.5, fontWeight: '600', color: colors.inkFaint }}>
-              {visible.length} {visible.length === 1 ? 'ponto encontrado' : 'pontos encontrados'}
-            </Text>
-            <Pressable onPress={clearAll} accessibilityRole="button" accessibilityLabel="Limpar todos os filtros" hitSlop={6}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.primary }}>Limpar tudo</Text>
-            </Pressable>
-          </View>
-        )}
+          {anyFilter && (
+            <View
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                marginTop: 10, paddingTop: 10, paddingHorizontal: 4, borderTopWidth: 1, borderTopColor: colors.line,
+              }}
+            >
+              <Text accessibilityLiveRegion="polite" style={{ fontSize: 12.5, fontWeight: '600', color: colors.inkFaint }}>
+                {visible.length} {visible.length === 1 ? 'ponto encontrado' : 'pontos encontrados'}
+              </Text>
+              <Pressable onPress={clearAll} accessibilityRole="button" accessibilityLabel="Limpar todos os filtros" hitSlop={6}>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.primary }}>Limpar tudo</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
       </View>
 
       {view === 'map' && !visible.length && (

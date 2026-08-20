@@ -4,7 +4,6 @@
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { useTheme } from '../../theme/ThemeContext';
@@ -151,7 +150,6 @@ function StopRating({
 
 export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast: _pushToast }: RateFlowProps) {
   const { colors, space, font } = useTheme();
-  const insets = useSafeAreaInsets();
   const isGuide = kind === 'guide';
 
   const [step, setStep] = useState(0);
@@ -507,16 +505,15 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
         {/* ---------- footer ----------
             Sits inside the sheet's own content (not the app's tab bar) — since
             ModalSheet now renders via BottomSheetModal's portal, it's always above
-            the tab bar. This bottom padding is purely for the device's own
-            safe-area (home indicator / gesture bar), independent of that fix.
-            `insets.bottom` alone still left "Continuar" flush against the system
-            gesture bar on some Android devices/OEM skins (reported as the button
-            staying cut off even after the tab-bar fix) — floored at 24 so there's
-            always real breathing room above the bar even where the reported inset
-            under-counts it, and scales up further on devices that report more. */}
+            the tab bar. ModalSheet also passes `bottomInset` (the device's own
+            safe-area/gesture-bar height) to BottomSheetModal itself now, which
+            shifts the sheet's whole frame above that bar — so this only needs a
+            small fixed cushion on top of that, not a second full inset (adding
+            `insets.bottom` again here would double-count it and push the button
+            up further than necessary). */}
         <View
           style={{
-            flexShrink: 0, padding: 18, paddingBottom: 18 + Math.max(24, insets.bottom), backgroundColor: colors.surface,
+            flexShrink: 0, padding: 18, paddingBottom: 26, backgroundColor: colors.surface,
             shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: -8 }, elevation: 8,
           }}
         >

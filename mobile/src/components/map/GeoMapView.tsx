@@ -83,7 +83,7 @@ export function GeoMapView({
             <Marker
               key={r.id}
               coordinate={{ latitude: r.lat, longitude: r.lng }}
-              anchor={{ x: 0.5, y: 1 }}
+              anchor={{ x: 0.5, y: 0.5 }}
               tracksViewChanges={false}
               onPress={() => onReport(r)}
               accessibilityLabel={`Reporte da comunidade: ${r.label}, há ${r.when}. Toque para ver detalhes`}

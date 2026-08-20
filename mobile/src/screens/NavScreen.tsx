@@ -151,7 +151,20 @@ export function NavScreen({ route, navigation }: Props) {
   const destPoint: GeoPoint = { lat: station.lat, lng: station.lng };
   const seed = seedFromId(station.id);
 
-  const pts = useMemo(() => (origin ? buildRoute(origin, destPoint, seed) : []), [origin, station.id]);
+  // Demo mode fabricates a "few doglegs" street-like line (routeSim.ts) purely
+  // as a visual stand-in, over a route that's entirely synthetic anyway — fine
+  // there. Drawing that same fabricated shape over the REAL map in real-GPS mode
+  // looked actively wrong (reported: "a rota não é correta") — it has no relation
+  // to actual streets, so on real imagery it visibly cuts through blocks/buildings
+  // at the wrong angles instead of just reading as an approximation. Real mode
+  // draws a plain straight line instead — still not a real route (no Directions
+  // API — docs/MAPS.md §5), but a straight line doesn't *claim* to be a street
+  // route the way a fake dogleg shape does, so it doesn't visibly contradict the
+  // basemap under it.
+  const pts = useMemo(() => {
+    if (!origin) return [];
+    return demoMode ? buildRoute(origin, destPoint, seed) : [origin, destPoint];
+  }, [origin, station.id, demoMode]);
   const cum = useMemo(() => cumLengths(pts), [pts]);
   const totalUnits = cum[cum.length - 1] || 0;
   // Headline distance from real haversine (origin → destination), not the
@@ -270,10 +283,20 @@ export function NavScreen({ route, navigation }: Props) {
         accessibilityLabel={`Mapa de navegação até ${station.name}`}
       >
         {pts.length > 0 && (
-          <Polyline coordinates={pts.map((p) => ({ latitude: p.lat, longitude: p.lng }))} strokeColor={colors.lineStrong} strokeWidth={6} />
+          <Polyline
+            coordinates={pts.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+            strokeColor={colors.lineStrong}
+            strokeWidth={demoMode ? 6 : 4}
+            lineDashPattern={demoMode ? undefined : [10, 8]}
+          />
         )}
         {doneCoords.length > 1 && (
-          <Polyline coordinates={doneCoords.map((p) => ({ latitude: p.lat, longitude: p.lng }))} strokeColor={colors.primary} strokeWidth={6} />
+          <Polyline
+            coordinates={doneCoords.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+            strokeColor={colors.primary}
+            strokeWidth={demoMode ? 6 : 4}
+            lineDashPattern={demoMode ? undefined : [10, 8]}
+          />
         )}
         <Marker coordinate={{ latitude: destPoint.lat, longitude: destPoint.lng }} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
           <DestFlag station={station} />
