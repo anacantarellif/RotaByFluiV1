@@ -9,9 +9,15 @@ import { Icon, IconName } from '../components/icons/Icon';
 import { useTheme } from '../theme/ThemeContext';
 import { DATA } from '../data/data';
 import { FeedItem as FeedItemT, Mission } from '../data/types';
+import { useWatts } from '../state/WattsContext';
+import { useMissions } from '../state/MissionsContext';
 
 // ---- MissionCard ----
 
+// `m` here is DATA.missions' static title/desc/reward/icon merged with real
+// prog/done from MissionsContext (see the map site below) — the static array
+// alone used to be the *only* source, so progress never moved no matter what
+// the driver actually did.
 function MissionCard({ m }: { m: Mission }) {
   const { colors, font, space } = useTheme();
   const pct = Math.round((m.prog / m.total) * 100);
@@ -162,7 +168,14 @@ export function CommunityScreen() {
   const { colors, font, space } = useTheme();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('feed');
-  const u = DATA.user;
+  const { watts } = useWatts();
+  const { counts, completed } = useMissions();
+  const u = { ...DATA.user, watts };
+  const missions: Mission[] = DATA.missions.map((m) => ({
+    ...m,
+    prog: counts[m.id] ?? m.prog,
+    done: completed.includes(m.id) || m.done,
+  }));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -200,10 +213,10 @@ export function CommunityScreen() {
             accessibilityValue={{ min: 0, max: u.nextLevel, now: u.watts, text: `${u.watts} de ${u.nextLevel} Watts` }}
             style={{ height: 8, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', marginTop: 14 }}
           >
-            <View style={{ width: `${(u.watts / u.nextLevel) * 100}%`, height: '100%', borderRadius: 5, backgroundColor: '#fff' }} />
+            <View style={{ width: `${Math.min(100, (u.watts / u.nextLevel) * 100)}%`, height: '100%', borderRadius: 5, backgroundColor: '#fff' }} />
           </View>
           <Text style={{ fontSize: 12, marginTop: 7, color: 'rgba(255,255,255,0.85)' }}>
-            {(u.nextLevel - u.watts).toLocaleString('pt-BR')} Watts para o nível {u.level + 1}
+            {Math.max(0, u.nextLevel - u.watts).toLocaleString('pt-BR')} Watts para o nível {u.level + 1}
           </Text>
         </View>
 
@@ -215,7 +228,7 @@ export function CommunityScreen() {
           <Text style={{ fontSize: 12, color: colors.inkFaint }}>renova em 3d</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 22 }} contentContainerStyle={{ gap: 12, paddingVertical: 2 }}>
-          {DATA.missions.map((m) => (
+          {missions.map((m) => (
             <MissionCard key={m.id} m={m} />
           ))}
         </ScrollView>

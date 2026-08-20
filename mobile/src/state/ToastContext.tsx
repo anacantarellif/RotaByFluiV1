@@ -2,15 +2,17 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Text, View } from 'react-native';
 import { Icon } from '../components/icons/Icon';
+import { SparkleBurst } from '../components/motion/SparkleBurst';
 import { useTheme } from '../theme/ThemeContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
-type Toast = { msg: string; icon?: string } | null;
+type Toast = { msg: string; icon?: string; sparkle?: boolean } | null;
 
-const ToastContext = createContext<{ pushToast: (msg: string, icon?: string) => void } | null>(null);
+const ToastContext = createContext<{ pushToast: (msg: string, icon?: string, sparkle?: boolean) => void } | null>(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<Toast>(null);
+  const sparkleTrigger = useRef(0);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { colors, font } = useTheme();
   const reduced = useReducedMotion();
@@ -23,8 +25,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const translateY = useRef(new Animated.Value(10)).current;
 
   const pushToast = useCallback(
-    (msg: string, icon?: string) => {
-      setToast({ msg, icon });
+    (msg: string, icon?: string, sparkle?: boolean) => {
+      if (sparkle) sparkleTrigger.current += 1;
+      setToast({ msg, icon, sparkle });
       AccessibilityInfo.announceForAccessibility(msg);
       clearTimeout(hideTimer.current);
 
@@ -71,7 +74,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             opacity, transform: [{ translateY }],
           }}
         >
-          {toast.icon && <Icon name={toast.icon} size={16} color={colors.bg} />}
+          {toast.icon && (
+            <View>
+              <Icon name={toast.icon} size={16} color={colors.bg} />
+              {toast.sparkle && <SparkleBurst trigger={sparkleTrigger.current} color={colors.gold} size={11} />}
+            </View>
+          )}
           <Text style={{ color: colors.bg, fontFamily: font.uiMedium, fontSize: 14 }}>{toast.msg}</Text>
         </Animated.View>
       )}

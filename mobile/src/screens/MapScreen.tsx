@@ -31,6 +31,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../state/ToastContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useWatts } from '../state/WattsContext';
+import { useMissions } from '../state/MissionsContext';
 import { ROTA_CONFIG } from '../config';
 import { DATA } from '../data/data';
 import { Report, Station } from '../data/types';
@@ -564,6 +565,7 @@ export function MapScreen() {
   const { pushToast } = useToast();
   const { favs, toggleFav } = useFavorites();
   const { addWatts } = useWatts();
+  const { recordRating, recordPhoto, recordReport, recordAreaVisit } = useMissions();
 
   const [active, setActive] = useState<string | null>(null);
   const [detail, setDetail] = useState(false);
@@ -605,7 +607,10 @@ export function MapScreen() {
     setActive(st.id);
     setDetail(false);
   };
-  const openDetail = () => setDetail(true);
+  const openDetail = () => {
+    setDetail(true);
+    if (activeSt) recordAreaVisit(activeSt.area);
+  };
   const close = () => {
     setActive(null);
     setDetail(false);
@@ -853,7 +858,8 @@ export function MapScreen() {
           onDone={(r) => {
             setReport(null);
             addWatts(REPORT_WATTS);
-            pushToast(`Reporte enviado · ${r.label}`, 'check');
+            recordReport();
+            pushToast(`Reporte enviado · ${r.label}`, 'check', true);
           }}
         />
       )}
@@ -879,7 +885,9 @@ export function MapScreen() {
           onDone={(r) => {
             setRate(null);
             addWatts(r.watts);
-            pushToast(r.selo ? `Avaliação + indicação ao Selo Flui · +${r.watts} W` : `Avaliação publicada · +${r.watts} Watts`, 'check');
+            recordRating();
+            if (r.photos > 0) recordPhoto();
+            pushToast(r.selo ? `Avaliação + indicação ao Selo Flui · +${r.watts} W` : `Avaliação publicada · +${r.watts} Watts`, 'check', true);
           }}
         />
       )}

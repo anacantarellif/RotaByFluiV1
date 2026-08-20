@@ -88,7 +88,7 @@ const GOOD: Record<Kind, [string, string][]> = {
 const LABELS = ['Toque nas estrelas', 'Evite', 'Fraco', 'Ok', 'Muito bom', 'Excelente'];
 const STEP_TITLES = ['Sua nota', 'O que foi bom', 'Pronto'];
 
-export type RateResult = { stars: number; selo: boolean; watts: number; kind: Kind };
+export type RateResult = { stars: number; selo: boolean; watts: number; kind: Kind; photos: number };
 
 export type RateFlowProps = {
   /** Station or Guide (full object from DATA, not an id) being rated. */
@@ -247,7 +247,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
     200 + tags.length * 10 + photos * 50 + (body.trim() ? 40 : 0) + Object.keys(stopStars).length * 15 + (selo ? 60 : 0);
 
   const submit = () => setStep(2);
-  const finish = () => onDone({ stars, selo, watts, kind });
+  const finish = () => onDone({ stars, selo, watts, kind, photos });
 
   const canNext = step === 0 ? stars > 0 : true;
 

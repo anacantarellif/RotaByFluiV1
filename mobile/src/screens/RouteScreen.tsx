@@ -24,6 +24,7 @@ import { focus } from '../theme/tokens';
 import { useToast } from '../state/ToastContext';
 import { useCar } from '../state/CarContext';
 import { useWatts } from '../state/WattsContext';
+import { useMissions } from '../state/MissionsContext';
 import { batteryAfterDistance, chargeMinutesAtPower, effectiveChargePowerKw } from '../utils/evCharging';
 import { estimateDurationLabel, Terrain, terrainForGuide } from '../utils/duration';
 import { DATA } from '../data/data';
@@ -180,6 +181,7 @@ export function RouteScreen() {
   const { pushToast } = useToast();
   const { car } = useCar();
   const { addWatts } = useWatts();
+  const { recordRating, recordPhoto } = useMissions();
   const insets = useSafeAreaInsets();
 
   const [battery, setBattery] = useState(DATA.route.startBattery);
@@ -274,7 +276,9 @@ export function RouteScreen() {
         onRateDone={(r) => {
           setRateGuide(null);
           addWatts(r.watts);
-          pushToast(`Roteiro avaliado · +${r.watts} Watts`, 'check');
+          recordRating();
+          if (r.photos > 0) recordPhoto();
+          pushToast(`Roteiro avaliado · +${r.watts} Watts`, 'check', true);
         }}
       />
     );
