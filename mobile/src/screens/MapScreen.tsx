@@ -16,7 +16,7 @@
 // is gone (MapsHandoffSheet navigates via useNavigation() itself), and `density`/
 // `showReports` read from useTheme() instead of being passed in.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
 import { AMEN, AVAIL, Stars, StationSheet } from '../components/station/Station';
@@ -146,6 +146,17 @@ function Chip({
       accessibilityLabel={a11yLabel ?? label}
       hitSlop={4}
       scaleTo={0.94}
+      // Purely static layout here — no animated values. AnimatedPressable
+      // merges this with its own native-driven scale transform on ONE
+      // Animated node; mixing a JS-driven interpolated color (fill isn't
+      // useNativeDriver, color interpolation needs it) into that same style
+      // object crashes with "Attempting to run JS driven animation on
+      // animated node that has been moved to 'native'" the moment both
+      // animations are live at once (reported: opening Filtros). The
+      // JS-driven fill colors live on their own separate Animated.View below
+      // instead — a different node, no conflict — absolutely filling this
+      // one, which is why this needs its own borderRadius + overflow:hidden
+      // to clip that layer's corners.
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -154,11 +165,13 @@ function Chip({
         paddingVertical: 8,
         paddingHorizontal: 14,
         borderRadius: 100,
-        backgroundColor,
-        borderWidth: 1.5,
-        borderColor,
+        overflow: 'hidden',
       }}
     >
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { borderRadius: 100, backgroundColor, borderWidth: 1.5, borderColor }]}
+      />
       {iconElement ?? (icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />)}
       <Animated.Text style={{ fontFamily: font.uiSemibold, fontSize: 12.5, color: textColor }}>{label}</Animated.Text>
     </AnimatedPressable>
