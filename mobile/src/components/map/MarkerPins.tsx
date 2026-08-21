@@ -79,23 +79,30 @@ const PIN_PATH =
 // properly respecting a taller box.
 //
 // Fix: never grow the canvas. The crown is drawn as a small badge *inside*
-// the same 24×24 square the pin alone already uses (slightly overlapping
-// its top edge, like a notification badge on an avatar), instead of adding
+// the same 24×24 square the pin alone already uses, instead of adding
 // height above it — every station marker is the same square size regardless
 // of selo.
+//
+// First attempt at that still got clipped (this time reported as "o pin
+// aparece completo, mas o selo é cortado" — the pin itself finally correct,
+// just the crown cut). Cause: it was positioned mostly *above* y=0
+// (`CROWN_Y_OFFSET = -CROWN_UNIT * 0.65`, meant to sit like a badge peeking
+// over the pin's top edge) — outside the declared `viewBox="0 0 24 24"`.
+// That's a different clipping mechanism than every other bug this session:
+// not react-native-maps' marker-bitmap capture, just plain SVG viewport
+// clipping — content outside a viewBox doesn't paint. Simplest fix (and the
+// one asked for): center the badge on the pin's own notch circle (12, 10)
+// instead of hanging it off the top edge, so it's fully inside 0–24 no
+// matter what.
 const CROWN_RING_PATH =
   'M14.8627 24.8277C13.9777 25.6995 12.5585 25.7047 11.667 24.8397L9.99827 23.2204C9.57176 22.8065 9.00082 22.575 8.40651 22.575H6.19392C4.93156 22.575 3.90821 21.5517 3.90821 20.2893V18.0968C3.90821 17.4906 3.6674 16.9092 3.23874 16.4805L1.61612 14.8579C0.723495 13.9653 0.723495 12.5181 1.61612 11.6254L3.23874 10.0028C3.6674 9.57415 3.90821 8.99277 3.90821 8.38656V6.19405C3.90821 4.93168 4.93156 3.90833 6.19393 3.90833H8.39141C8.99468 3.90833 9.57348 3.66984 10.0016 3.24486L11.6484 1.61027C12.5444 0.720949 13.9916 0.72635 14.8809 1.62233L16.4794 3.2328C16.9085 3.66516 17.4925 3.90833 18.1017 3.90833H20.2892C21.5515 3.90833 22.5749 4.93168 22.5749 6.19405V8.38656C22.5749 8.99277 22.8157 9.57415 23.2443 10.0028L24.867 11.6254C25.7596 12.5181 25.7596 13.9653 24.867 14.8579L23.2443 16.4805C22.8157 16.9092 22.5749 17.4906 22.5749 18.0968V20.2893C22.5749 21.5517 21.5515 22.575 20.2892 22.575H18.0865C17.4863 22.575 16.9102 22.8111 16.4826 23.2323L14.8627 24.8277Z';
 const CROWN_BOLT_PATH = 'M12.9012 14.7002V19.0752L17.3248 11.7836H14.1651V7.40857L9.74146 14.7002H12.9012Z';
-// Small badge, 8×8 units, centered on the top edge of the 24-wide shape —
-// mostly above it with a slight overlap, not adding to the canvas height.
-const CROWN_UNIT = 8;
+const CROWN_UNIT = 9;
 const CROWN_SCALE = CROWN_UNIT / 27;
-const CROWN_X_OFFSET = (24 - CROWN_UNIT) / 2;
-const CROWN_Y_OFFSET = -CROWN_UNIT * 0.65;
 
-function CrownBadge({ goldColor, fill }: { goldColor: string; fill: string }) {
+function CrownBadge({ cx, cy, goldColor, fill }: { cx: number; cy: number; goldColor: string; fill: string }) {
   return (
-    <G transform={`translate(${CROWN_X_OFFSET}, ${CROWN_Y_OFFSET}) scale(${CROWN_SCALE})`}>
+    <G transform={`translate(${cx - CROWN_UNIT / 2}, ${cy - CROWN_UNIT / 2}) scale(${CROWN_SCALE})`}>
       <Path d={CROWN_RING_PATH} fill={goldColor} />
       <Path d={CROWN_BOLT_PATH} fill={fill} />
     </G>
@@ -118,8 +125,8 @@ function PinShape({
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path d={PIN_PATH} fill={fill} stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-      <SvgCircle cx={12} cy={10} r={3} fill={fill} stroke={color} strokeWidth={2} />
-      {selo && <CrownBadge goldColor={goldColor} fill={fill} />}
+      {!selo && <SvgCircle cx={12} cy={10} r={3} fill={fill} stroke={color} strokeWidth={2} />}
+      {selo && <CrownBadge cx={12} cy={10} goldColor={goldColor} fill={fill} />}
     </Svg>
   );
 }
@@ -131,7 +138,7 @@ function DotShape({ size, color, fill, selo, goldColor }: { size: number; color:
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <SvgCircle cx={12} cy={12} r={9.5} fill={fill} stroke={color} strokeWidth={3} />
-      {selo && <CrownBadge goldColor={goldColor} fill={fill} />}
+      {selo && <CrownBadge cx={12} cy={12} goldColor={goldColor} fill={fill} />}
     </Svg>
   );
 }
