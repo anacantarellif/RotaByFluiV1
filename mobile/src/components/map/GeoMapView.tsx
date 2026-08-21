@@ -10,7 +10,7 @@
 // full rationale and what still needs a real key to ship on Android.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
-import MapView, { Circle, Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useTheme } from '../../theme/ThemeContext';
 import { ROTA_CONFIG } from '../../config';
 import { DATA } from '../../data/data';
@@ -94,14 +94,42 @@ export function GeoMapView({
           ))}
 
         {list.map((st) => (
-          <StationMarker key={st.id} st={st} active={active === st.id} markerStyle={markers} onPin={onPin} />
+          <Marker
+            key={st.id}
+            coordinate={{ latitude: st.lat, longitude: st.lng }}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={active === st.id ? 10 : 1}
+            onPress={() => onPin(st)}
+            accessibilityLabel={pinLabel(st)}
+            // Station pins were still reported clipped after sizing their
+            // wrapper box to the rotated shape's true diagonal — the JS layout
+            // fix was correct, but with tracksViewChanges left at its default,
+            // react-native-maps rasterizes the marker into a native bitmap
+            // *once*, which on Android can happen before that layout has
+            // actually settled, baking in a clipped snapshot that then never
+            // gets recaptured. True here keeps it re-rasterizing from the
+            // current (correct) layout — a handful of station pins is cheap
+            // enough that the usual perf reason to avoid this doesn't apply.
+            tracksViewChanges
+          >
+            <StationPin st={st} active={active === st.id} markerStyle={markers} />
+          </Marker>
         ))}
 
-        {/* Pulsing "ondinha" ring around the driver's location — a native
-            Circle overlay (radius animated via a plain state update, driven
-            by an Animated.Value listener) instead of animating a Marker's
-            rasterized content. See UserLocationPulse below for why. */}
-        <UserLocationPulse coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }} />
+        <Marker
+          coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }}
+          anchor={{ x: 0.5, y: 0.5 }}
+          // Unlike the other markers, this one animates (the pulsing "ondinha"
+          // ring below) — react-native-maps only rasterizes a Marker's child
+          // into what's actually shown on the map when tracksViewChanges is
+          // true, so leaving this false (like the static station/report pins)
+          // would freeze the pulse as a single static frame. Just one marker,
+          // so the continuous-recapture cost is negligible.
+          tracksViewChanges
+          accessibilityLabel="Sua localização"
+        >
+          <UserDot />
+        </Marker>
       </MapView>
 
       {loading && <MapSkeleton />}
@@ -109,122 +137,55 @@ export function GeoMapView({
   );
 }
 
-// `tracksViewChanges` controls whether react-native-maps keeps re-rasterizing
-// a Marker's RN-view content into a native bitmap. Leaving it permanently
-// true (the previous approach here, meant to fix an earlier "clipped on
-// first render" bug) turned out to be the wrong direction entirely: Android
-// react-native-maps re-snapshotting the *same* marker every frame is a
-// documented source of bitmap corruption, and it lines up exactly with what
-// got reported — both markers that had it permanently true (station pins,
-// the old animated user-location marker) showed a corrupted/oversized
-// square-shaped snapshot artifact, while ReportPin markers, which have
-// always used `tracksViewChanges={false}`, were never reported broken.
-//
-// The correct pattern: start true (so the very first snapshot reflects a
-// fully-settled layout, the original bug this was fixing), then flip to
-// false shortly after so react-native-maps stops re-capturing it — and flip
-// back to true only when something that actually changes the marker's
-// appearance changes (here: selection or the dot/pin style toggle), for one
-// more settle-and-stop cycle.
-function useSettleTracking(deps: React.DependencyList, delay = 350) {
-  const [tracking, setTracking] = useState(true);
-  useEffect(() => {
-    setTracking(true);
-    const t = setTimeout(() => setTracking(false), delay);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return tracking;
-}
-
-function StationMarker({
-  st,
-  active,
-  markerStyle,
-  onPin,
-}: {
-  st: Station;
-  active: boolean;
-  markerStyle: 'pin' | 'dot';
-  onPin: (st: Station) => void;
-}) {
-  const tracking = useSettleTracking([active, markerStyle]);
-  return (
-    <Marker
-      coordinate={{ latitude: st.lat, longitude: st.lng }}
-      anchor={{ x: 0.5, y: 1 }}
-      zIndex={active ? 10 : 1}
-      onPress={() => onPin(st)}
-      accessibilityLabel={pinLabel(st)}
-      tracksViewChanges={tracking}
-    >
-      <StationPin st={st} active={active} markerStyle={markerStyle} />
-    </Marker>
-  );
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const clean = hex.replace('#', '');
-  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
-  const n = parseInt(full, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
 // Ported from styles.css `.userdot .pulse` — an expanding, fading ring behind
 // the solid position dot, looping.
 //
-// This used to be a Marker whose RN-view content animated (first a hand-drawn
-// Animated.View ring, briefly a Lottie ring) — both hit the same Android
-// react-native-maps bitmap-snapshot problems (see useSettleTracking above,
-// and Lottie specifically doesn't snapshot inside a Marker at all). A
-// continuously *animating* marker fundamentally needs continuous
-// re-rasterization, so it can't just get the "settle and stop" fix given to
-// the station pins above. The actual fix is to stop trying to animate marker
-// bitmap content for this at all: draw the ring as a native `Circle` map
-// overlay instead (radius in meters, drawn by the map SDK itself, no RN-view
-// snapshotting involved), and keep the solid center dot as a separate,
-// genuinely static Marker (tracksViewChanges={false} always — nothing about
-// it ever changes after mount).
-function UserLocationPulse({ coordinate }: { coordinate: { latitude: number; longitude: number } }) {
+// Briefly swapped for the designer-provided pulseDot Lottie, which had to be
+// reverted: embedding a LottieView inside a react-native-maps Marker doesn't
+// snapshot reliably on Android — Lottie draws through its own native path,
+// which doesn't consistently participate in the bitmap capture
+// react-native-maps uses for marker content. Reported and confirmed by
+// screenshot: the pulse rendered as a flat-topped half-disk instead of a full
+// ring, while the plain-View station pins right next to it in the same
+// screenshot were completely intact — the clipping was specific to the one
+// marker with a native view embedded in it, not a general marker-sizing
+// issue. Plain Animated.View (no embedded native view) is what station pins
+// already use safely, so that's what this goes back to.
+function UserDot() {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
   const pulse = useRef(new Animated.Value(0)).current;
-  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (reduced) return;
-    const id = pulse.addListener(({ value }) => setProgress(value));
     const loop = Animated.loop(
-      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: false })
+      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: true })
     );
     loop.start();
-    return () => {
-      pulse.removeListener(id);
-      loop.stop();
-    };
+    return () => loop.stop();
   }, [reduced, pulse]);
 
-  const [r, g, b] = hexToRgb(colors.primary);
-
   return (
-    <>
+    <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
       {!reduced && (
-        <Circle
-          center={coordinate}
-          radius={12 + progress * 90}
-          fillColor={`rgba(${r},${g},${b},${0.35 * (1 - progress)})`}
-          strokeColor="transparent"
-          zIndex={1}
-        />
-      )}
-      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} accessibilityLabel="Sua localização">
-        <View
+        <Animated.View
           style={{
-            width: 18, height: 18, borderRadius: 9,
-            backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
+            position: 'absolute',
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: colors.primary,
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 4.5] }) }],
           }}
         />
-      </Marker>
-    </>
+      )}
+      <View
+        style={{
+          width: 18, height: 18, borderRadius: 9,
+          backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
+        }}
+      />
+    </View>
   );
 }
