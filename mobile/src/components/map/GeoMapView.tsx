@@ -154,31 +154,23 @@ export function GeoMapView({
 // behind the solid position dot, looping.
 //
 // Went through several wrong turns before this one — see git history for
-// the full trail (a too-small wrapper clipping the scaled-up ring; the ring
-// defaulting to `position:absolute`'s implicit top-left instead of being
-// centered in that wrapper; splitting the dot and ring into two separate
-// Markers to dodge one bug, which then surfaced a *new* one — reported: the
-// dot and the ring visually not lining up, at the same geographic
-// coordinate). Recombined into one marker: two Markers at an identical
-// coordinate should coincide, and them drifting apart pointed at the split
-// itself being part of the problem, not the fix.
+// the full trail. The fix that finally landed for station pins (never grow
+// a marker's canvas beyond a single reliably-correct size — draw any extra
+// decoration as an overlay *inside* that same size instead) applies here
+// too: this used to grow the ring via `transform: scale` up to 4.5×, which
+// meant reserving a much bigger wrapper box (81px) than the dot's own
+// naturally-correct 18px — the same "bigger than the reliably-correct size"
+// pattern that broke the pins. Confirmed (once the pin fix landed) that the
+// ring and dot still didn't line up and the ring was still cut, pointing at
+// the same root cause here, not a separate one.
 //
-// Also switched the ring's animation off the native driver. A
-// natively-driven transform (useNativeDriver: true) updates a view's
-// rendering via the UI render thread directly, bypassing the normal
-// layout/style pipeline — if react-native-maps' Android bitmap capture
-// reads a view's state through that normal pipeline (a synchronous
-// view.draw(canvas) call), it can plausibly miss or misread a transform
-// that's live only on the render thread, which fits both symptoms reported
-// (the ring appearing cut, and the ring and dot appearing to occupy
-// different positions despite sharing one marker and one coordinate). JS-
-// driven (useNativeDriver: false) updates the same style/layout path
-// everything else in this file (including the always-correctly-rendered
-// solid dot) goes through.
+// Fixed the same way: the ring never grows past a fixed, modest size now —
+// no `scale` transform at all, no need for a bigger box than the dot
+// already used. It pulses by fading only (opacity), trading the "expanding
+// wave" look for a "breathing" one in exchange for not needing more
+// canvas space than what's already proven reliable.
 const RING_BASE = 18;
-const RING_SCALE_MAX = 4.5;
-const RING_BOX = RING_BASE * RING_SCALE_MAX;
-const RING_CENTER_OFFSET = (RING_BOX - RING_BASE) / 2;
+const RING_SIZE = 32;
 
 function UserDot() {
   const { colors } = useTheme();
@@ -188,26 +180,26 @@ function UserDot() {
   useEffect(() => {
     if (reduced) return;
     const loop = Animated.loop(
-      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: false })
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ])
     );
     loop.start();
     return () => loop.stop();
   }, [reduced, pulse]);
 
   return (
-    <View style={{ width: RING_BOX, height: RING_BOX, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
+    <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
       {!reduced && (
         <Animated.View
           style={{
             position: 'absolute',
-            top: RING_CENTER_OFFSET,
-            left: RING_CENTER_OFFSET,
-            width: RING_BASE,
-            height: RING_BASE,
-            borderRadius: RING_BASE / 2,
+            width: RING_SIZE,
+            height: RING_SIZE,
+            borderRadius: RING_SIZE / 2,
             backgroundColor: colors.primary,
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, RING_SCALE_MAX] }) }],
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.5] }),
           }}
         />
       )}
