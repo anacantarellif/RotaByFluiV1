@@ -10,7 +10,8 @@
 // Views; the single source of truth for "pin tapped" is the <Marker onPress>
 // in GeoMapView.tsx, which fires the OS-level marker tap directly.
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import Svg, { Circle as SvgCircle, Path } from 'react-native-svg';
 import { Icon, Seal } from '../icons/Icon';
 import { useTheme } from '../../theme/ThemeContext';
 import { Station, Report } from '../../data/types';
@@ -27,64 +28,43 @@ export function pinLabel(st: Station) {
 
 const AVAIL_COLOR_KEY: Record<string, 'ok' | 'busy' | 'off'> = { ok: 'ok', busy: 'busy', off: 'off' };
 
-// Exact shape from project/app/styles.css `.pin .body` / `.report .bubble`: a
-// square rotated 45° with three rounded corners and one near-sharp corner —
-// the classic CSS "map balloon" trick (`border-radius: 50% 50% 4px 50%` then
-// `rotate(45deg)`), outlined in the state color on a plain surface background
-// (not filled solid), content counter-rotated back upright inside. RN has no
-// percentage border-radius, so the corners are pre-computed for each fixed
-// size below. An earlier version of this file used a filled rounded-badge +
-// separate triangle instead — visually a different mark from the design
-// reference, not just smaller — this replaces it with the actual shape.
-//
-// Sized somewhat larger than a stock Google Maps pin (~24-28px) so Flui's own
-// points read as clearly distinct from the basemap's own POI icons, while
-// keeping the reference's proportions and outline styling.
-// RN's `rotate` transform doesn't resize the element's own layout box — a 38×38
-// square rotated 45° paints a ~54×54 diamond, visually overflowing its own
-// unrotated 38×38 box by ~8px on every side. react-native-maps measures a
-// Marker's child by that *unrotated layout* box to build its native marker
-// bitmap, so anything painted outside it (here, the diamond's bottom tip) gets
-// clipped off (reported: "os pins estão com a extremidade inferior cortada").
-// Fix: give the rotated shape its own wrapper box sized to its true diagonal
-// (side * √2) instead of the unrotated side length, so nothing it paints falls
-// outside that box's bounds. `diamondBox` below does that; the crown sits as a
-// normal (non-absolute) sibling above it so it's included in Marker's
-// measurement too, rather than an absolutely-positioned overlay that would
-// reintroduce the same clipping.
-//
-// That fix alone still left the bottom tip visibly cut off, because
-// diamondBox() is the *tightest* box that contains the diamond — its four
-// tangent points (top/bottom/left/right) touch the box edge with zero
-// margin. The pin bodies used to carry a drop shadow (shadowOffset pushing it
-// down + shadowRadius blur, plus Android's own `elevation` shadow), which
-// paints past the shape's edge — exactly the region this box has no room
-// for, worst at the bottom where the offset adds to the blur. Marker
-// rasterizes to this *measured layout* box, so that shadow got clipped at
-// its edge. Padding the box to make room would mean the anchor ({x:0.5,
-// y:1}, GeoMapView.tsx) — deliberately kept as the simple bottom-of-shape
-// fraction so it stays correct across active/inactive sizes and the crown —
-// would need to move to a fraction below 1.0, throwing off exactly where the
-// pin points on the map. Fixed that by dropping the shadow — same issue for
-// the 'dot' style below (its box is the circle's own exact size, same zero
-// margin) and for ReportPin.
-//
-// Still reported cut off after BOTH of those fixes, despite the JS layout
-// math being correct on paper — which points at a third, more fundamental
-// cause: Android's view-flattening. RN can strip a purely-layout wrapper
-// View (no background/border/other visual property of its own — exactly
-// what the `box`-sized View below is) out of the *native* view tree it hands
-// to renderers, even though it's still present in the JS/React tree. If
-// react-native-maps' Android snapshot code measures that flattened native
-// tree rather than React's layout tree, the wrapper's carefully-computed
-// diamondBox() size could simply not exist by the time the bitmap is
-// captured — silently reverting to the rotated shape's own unrotated
-// `side × side` box (the original bug) no matter how correct the JS-side fix
-// looks. `collapsable={false}` on that wrapper (and ReportPin's) forces RN to
-// keep it as a real, independently measurable native node instead of
-// optimizing it away.
+// ReportPin (below) still uses the CSS-style "rotated square" balloon trick
+// ported from project/app/styles.css `.report .bubble` — a square rotated 45°
+// with three rounded corners and one near-sharp corner, outlined in the
+// report's color on a plain surface background. RN's `rotate` transform
+// doesn't resize the element's own *measured* layout box, so a naive
+// side×side wrapper clips the rotated diamond's overflow; `diamondBox` below
+// sizes the wrapper to the shape's true diagonal (side × √2) instead, and
+// `collapsable={false}` keeps that wrapper from being optimized out of the
+// native view tree react-native-maps measures (Android can otherwise strip a
+// purely-layout View with no background/border of its own, silently
+// reverting to the original clipping bug). Never reported broken for
+// ReportPin specifically, so it's untouched — StationPin (below) moved off
+// this trick entirely in favor of a real SVG pin shape (see PinShape), which
+// has no rotated/scaled content to overflow its box in the first place.
 function diamondBox(side: number) {
   return Math.ceil(side * Math.SQRT2);
+}
+
+// Real map-pin silhouette (path from the reference SVG the ponto shape was
+// asked to match), replacing the rotated-diamond balloon StationPin used to
+// draw. An SVG element's own width/height *is* exactly what's drawn — no
+// rotated or scaled content that can overflow its measured box the way the
+// diamond trick's `rotate` (and the map's pulse ring's `scale`) repeatedly
+// did, so this sidesteps that entire class of clipping bug rather than
+// working around it. Filled with the surface color and stroked in the
+// station's status color, matching the outline-on-surface look the app's
+// other markers already use — same look, real pin shape.
+const PIN_PATH =
+  'M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0';
+
+function PinShape({ size, color, fill }: { size: number; color: string; fill: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={PIN_PATH} fill={fill} stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      <SvgCircle cx={12} cy={10} r={3} fill={fill} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
 }
 
 export function StationPin({
@@ -103,7 +83,6 @@ export function StationPin({
   // signals "has a selo"; the border's job is purely the live status.
   const borderColor = colors[AVAIL_COLOR_KEY[st.avail]];
   const side = active ? 42 : 38;
-  const box = diamondBox(side);
 
   if (markerStyle === 'dot') {
     // `.rota[data-markers="dot"] .pin .body`: same outline-on-surface styling,
@@ -134,19 +113,7 @@ export function StationPin({
           <Seal size={16} />
         </View>
       )}
-      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
-        <View
-          style={{
-            width: side, height: side,
-            borderTopLeftRadius: side / 2, borderTopRightRadius: side / 2, borderBottomRightRadius: 4, borderBottomLeftRadius: side / 2,
-            backgroundColor: colors.surface, borderWidth: 2.5, borderColor,
-            alignItems: 'center', justifyContent: 'center',
-            transform: [{ rotate: '45deg' }],
-          }}
-        >
-          <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '700', transform: [{ rotate: '-45deg' }] }}>{st.power}</Text>
-        </View>
-      </View>
+      <PinShape size={side} color={borderColor} fill={colors.surface} />
     </View>
   );
 }

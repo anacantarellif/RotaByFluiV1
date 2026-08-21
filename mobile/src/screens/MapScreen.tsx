@@ -102,6 +102,26 @@ function countAdv(adv: Adv): number {
   );
 }
 
+// A report's `station` field is free-text flavor label, not a real reference
+// to a DATA.stations entry — some don't even match a station name exactly
+// (e.g. r2's "Posto Ipiranga · Faria Lima" vs. the actual nearby station
+// "Posto Berrini Energy"). Real lat/lng exist on both, so matching by
+// closest coordinate is the reliable way to resolve which station a report
+// is actually about — used when a report is tapped a second time to open
+// that station's ficha (see MapScreen's onReport below).
+function nearestStation(r: Report): Station {
+  let best = DATA.stations[0];
+  let bestDist = Infinity;
+  for (const st of DATA.stations) {
+    const d = (st.lat - r.lat) ** 2 + (st.lng - r.lng) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = st;
+    }
+  }
+  return best;
+}
+
 // ---- shared Chip (quick filters, FilterSheet toggles) ----
 
 function Chip({
@@ -654,8 +674,21 @@ export function MapScreen() {
           active={active}
           onPin={openPin}
           onReport={(r) => {
-            close();
-            setEvent(r);
+            // Tapping the same report a second time (it's already open) means
+            // the driver wants to see the station behind it, not the report
+            // again — swap to that station's ficha instead. Same
+            // close-then-open-after-a-delay pattern as closeStationThen
+            // above: EventSheet and StationSheet are separate ModalSheet
+            // instances, so dismissing one and presenting the other in the
+            // same tick is the exact race that made the ficha unreliable
+            // before.
+            if (event?.id === r.id) {
+              setEvent(null);
+              setTimeout(() => openPin(nearestStation(r)), 280);
+            } else {
+              close();
+              setEvent(r);
+            }
           }}
           showReports={showReports}
           recenterSignal={recenter}
