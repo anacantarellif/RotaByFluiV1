@@ -84,17 +84,31 @@ export function StationPin({
   const borderColor = colors[AVAIL_COLOR_KEY[st.avail]];
   const side = active ? 42 : 38;
 
+  // The crown badge used to be a conditionally-rendered sibling
+  // ({st.selo > 0 && <Seal/>}), which means a selo'd station's marker has a
+  // taller total layout (crown + gap + pin) than one without — a different
+  // tree shape per marker instance, not just different content. Reported
+  // clipping correlated exactly with that: every cut pin had a crown, every
+  // intact one didn't. react-native-maps' Android SizeReportingShadowNode
+  // reports each marker's measured width/height back to the native side
+  // after its own layout pass — asymmetric conditional content is exactly
+  // the kind of thing that can end up measured inconsistently between
+  // instances. Now every station marker (selo or not) renders the *same*
+  // tree — the crown slot is always present and always reserves the same
+  // space, only its opacity toggles — so there's no per-instance structural
+  // difference left for a stale or inconsistent measurement to hide in.
+  const CROWN_SIZE = 16;
+  const CROWN_GAP = markerStyle === 'dot' ? -4 : 2;
+
   if (markerStyle === 'dot') {
     // `.rota[data-markers="dot"] .pin .body`: same outline-on-surface styling,
     // just a plain circle instead of the rotated balloon — circles don't
     // overflow their own bounding box, so no wrapper box needed here.
     return (
       <View style={{ alignItems: 'center' }} collapsable={false}>
-        {st.selo > 0 && (
-          <View style={{ marginBottom: -4 }}>
-            <Seal size={16} />
-          </View>
-        )}
+        <View style={{ marginBottom: CROWN_GAP, opacity: st.selo > 0 ? 1 : 0 }}>
+          <Seal size={CROWN_SIZE} />
+        </View>
         <View
           style={{
             width: active ? 31 : 26, height: active ? 31 : 26, borderRadius: 16,
@@ -108,11 +122,9 @@ export function StationPin({
 
   return (
     <View style={{ alignItems: 'center' }} collapsable={false}>
-      {st.selo > 0 && (
-        <View style={{ marginBottom: 2 }}>
-          <Seal size={16} />
-        </View>
-      )}
+      <View style={{ marginBottom: CROWN_GAP, opacity: st.selo > 0 ? 1 : 0 }}>
+        <Seal size={CROWN_SIZE} />
+      </View>
       <PinShape size={side} color={borderColor} fill={colors.surface} />
     </View>
   );
