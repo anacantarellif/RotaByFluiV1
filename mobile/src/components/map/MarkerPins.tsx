@@ -65,9 +65,24 @@ const AVAIL_COLOR_KEY: Record<string, 'ok' | 'busy' | 'off'> = { ok: 'ok', busy:
 // y:1}, GeoMapView.tsx) — deliberately kept as the simple bottom-of-shape
 // fraction so it stays correct across active/inactive sizes and the crown —
 // would need to move to a fraction below 1.0, throwing off exactly where the
-// pin points on the map. Simplest correct fix: no shadow on the pin bodies:
-// same issue for the 'dot' style below (its box is the circle's own exact
-// size, same zero margin) and for ReportPin.
+// pin points on the map. Fixed that by dropping the shadow — same issue for
+// the 'dot' style below (its box is the circle's own exact size, same zero
+// margin) and for ReportPin.
+//
+// Still reported cut off after BOTH of those fixes, despite the JS layout
+// math being correct on paper — which points at a third, more fundamental
+// cause: Android's view-flattening. RN can strip a purely-layout wrapper
+// View (no background/border/other visual property of its own — exactly
+// what the `box`-sized View below is) out of the *native* view tree it hands
+// to renderers, even though it's still present in the JS/React tree. If
+// react-native-maps' Android snapshot code measures that flattened native
+// tree rather than React's layout tree, the wrapper's carefully-computed
+// diamondBox() size could simply not exist by the time the bitmap is
+// captured — silently reverting to the rotated shape's own unrotated
+// `side × side` box (the original bug) no matter how correct the JS-side fix
+// looks. `collapsable={false}` on that wrapper (and ReportPin's) forces RN to
+// keep it as a real, independently measurable native node instead of
+// optimizing it away.
 function diamondBox(side: number) {
   return Math.ceil(side * Math.SQRT2);
 }
@@ -95,7 +110,7 @@ export function StationPin({
     // just a plain circle instead of the rotated balloon — circles don't
     // overflow their own bounding box, so no wrapper box needed here.
     return (
-      <View style={{ alignItems: 'center' }}>
+      <View style={{ alignItems: 'center' }} collapsable={false}>
         {st.selo > 0 && (
           <View style={{ marginBottom: -4 }}>
             <Seal size={16} />
@@ -113,13 +128,13 @@ export function StationPin({
   }
 
   return (
-    <View style={{ alignItems: 'center' }}>
+    <View style={{ alignItems: 'center' }} collapsable={false}>
       {st.selo > 0 && (
         <View style={{ marginBottom: 2 }}>
           <Seal size={16} />
         </View>
       )}
-      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
         <View
           style={{
             width: side, height: side,
@@ -142,7 +157,7 @@ export function ReportPin({ r }: { r: Report }) {
   const side = 30;
   const box = diamondBox(side);
   return (
-    <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
       <View
         style={{
           width: side, height: side,

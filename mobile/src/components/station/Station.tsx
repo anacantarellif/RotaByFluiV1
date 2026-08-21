@@ -5,13 +5,14 @@
 // Presented as a bottom sheet in the source (`.sheet-scrim` + `.sheet`/`.sheet.peek`,
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
-import React, { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { StationSkeleton } from '../skeletons/Skeletons';
 import { useDelay } from '../../hooks/useDelay';
 import { ROTA_CONFIG } from '../../config';
@@ -161,6 +162,47 @@ function Photo({
 
 function Dot({ color }: { color: string }) {
   return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />;
+}
+
+// Favorite ("curtir") button — pops the heart when it flips to favorited,
+// on top of AnimatedPressable's own generic press-scale. Only animates on
+// the true→becomes-favorited edge, not on unfavoriting, matching the usual
+// "like" pop convention (a bounce is delightful when *adding*, but pointless
+// noise on removal).
+function FavoriteHeart({ fav, onPress }: { fav: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const pop = useRef(new Animated.Value(1)).current;
+  const wasFav = useRef(fav);
+
+  useEffect(() => {
+    if (fav && !wasFav.current && !reduced) {
+      pop.setValue(0.6);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 3.5, tension: 260 }).start();
+    }
+    wasFav.current = fav;
+  }, [fav, reduced, pop]);
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+      accessibilityState={{ selected: fav }}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.surface2,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Animated.View style={{ transform: [{ scale: pop }] }}>
+        <Icon name="heart" size={20} fill={fav ? colors.off : 'none'} color={fav ? colors.off : colors.ink} />
+      </Animated.View>
+    </AnimatedPressable>
+  );
 }
 
 function Spec({ icon, label, value, sub }: { icon: IconName; label: string; value: string; sub?: string }) {
@@ -719,22 +761,7 @@ function StationDetailContent({
             backgroundColor: colors.surface,
           }}
         >
-          <AnimatedPressable
-            onPress={() => onFav(st)}
-            accessibilityRole="button"
-            accessibilityLabel={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-            accessibilityState={{ selected: fav }}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.surface2,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="heart" size={20} fill={fav ? colors.off : 'none'} color={fav ? colors.off : colors.ink} />
-          </AnimatedPressable>
+          <FavoriteHeart fav={fav} onPress={() => onFav(st)} />
           <AnimatedPressable
             onPress={() => onReport?.(st)}
             accessibilityRole="button"

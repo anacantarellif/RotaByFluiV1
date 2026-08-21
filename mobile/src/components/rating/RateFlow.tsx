@@ -11,6 +11,7 @@ import { ModalSheet } from '../sheets/ModalSheet';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { LottieBurst } from '../motion/LottieBurst';
 import { useTheme } from '../../theme/ThemeContext';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { estimateDurationLabel, terrainForGuide } from '../../utils/duration';
 import { Guide, GuideStop, Station } from '../../data/types';
 
@@ -76,6 +77,58 @@ export type RateFlowProps = {
   pushToast?: (msg: string, icon?: string) => void;
 };
 
+// One star in a StarRow/StopRating group — owns its own "pop" bounce that
+// plays whenever it flips from empty to filled (tapping a higher star pops
+// every star up to it, in one render, which reads as a quick left-to-right
+// bounce). Split out from StarRow so each star's pop is independent instead
+// of one shared value that could only animate one star at a time.
+function RatingStar({
+  i,
+  value,
+  onChange,
+  size,
+  label,
+  hitSlop,
+  touchSize = 48,
+}: {
+  i: number;
+  value: number;
+  onChange: (v: number) => void;
+  size: number;
+  label: string;
+  hitSlop?: number | { top: number; bottom: number; left: number; right: number };
+  touchSize?: number;
+}) {
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const filled = i <= value;
+  const pop = useRef(new Animated.Value(1)).current;
+  const wasFilled = useRef(filled);
+
+  useEffect(() => {
+    if (filled && !wasFilled.current && !reduced) {
+      pop.setValue(0.55);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 4, tension: 260 }).start();
+    }
+    wasFilled.current = filled;
+  }, [filled, reduced, pop]);
+
+  return (
+    <AnimatedPressable
+      onPress={() => onChange(i)}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: value === i }}
+      accessibilityLabel={label}
+      hitSlop={hitSlop}
+      style={{ minWidth: touchSize, minHeight: touchSize, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Animated.View style={{ transform: [{ scale: pop }] }}>
+        <Icon name="star" size={size} fill={filled ? colors.gold : 'none'} color={filled ? colors.gold : colors.lineStrong} stroke={1.5} />
+      </Animated.View>
+    </AnimatedPressable>
+  );
+}
+
 // Big 1–5 star picker used for the overall rating (step 1).
 function StarRow({
   value,
@@ -86,7 +139,6 @@ function StarRow({
   onChange: (v: number) => void;
   size?: number;
 }) {
-  const { colors } = useTheme();
   // Source also tracks a `hover` state to preview the star count on mouse-over —
   // there's no hover concept on a touchscreen, so that preview is dropped here;
   // `value` alone drives the filled state.
@@ -97,22 +149,14 @@ function StarRow({
       style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}
     >
       {[1, 2, 3, 4, 5].map((i) => (
-        <AnimatedPressable
+        <RatingStar
           key={i}
-          onPress={() => onChange(i)}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: value === i }}
-          accessibilityLabel={`Avaliar com ${i} ${i === 1 ? 'estrela' : 'estrelas'}`}
-          style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon
-            name="star"
-            size={size}
-            fill={i <= value ? colors.gold : 'none'}
-            color={i <= value ? colors.gold : colors.lineStrong}
-            stroke={1.5}
-          />
-        </AnimatedPressable>
+          i={i}
+          value={value}
+          onChange={onChange}
+          size={size}
+          label={`Avaliar com ${i} ${i === 1 ? 'estrela' : 'estrelas'}`}
+        />
       ))}
     </View>
   );
@@ -157,23 +201,16 @@ function StopRating({
         style={{ flexDirection: 'row', gap: 1, flexShrink: 0 }}
       >
         {[1, 2, 3, 4, 5].map((i) => (
-          <AnimatedPressable
+          <RatingStar
             key={i}
-            onPress={() => onChange(i)}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: value === i }}
-            accessibilityLabel={`Avaliar ${stop.name} com ${i} de 5 estrelas`}
+            i={i}
+            value={value}
+            onChange={onChange}
+            size={17}
+            label={`Avaliar ${stop.name} com ${i} de 5 estrelas`}
             hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
-            style={{ minWidth: 44 / 5, minHeight: 34, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 }}
-          >
-            <Icon
-              name="star"
-              size={17}
-              fill={i <= value ? colors.gold : 'none'}
-              color={i <= value ? colors.gold : colors.lineStrong}
-              stroke={1.6}
-            />
-          </AnimatedPressable>
+            touchSize={34}
+          />
         ))}
       </View>
     </View>

@@ -5,9 +5,23 @@
 // unresponsive/hard to use on a touch-first flow (reported on the rating
 // flow specifically). Respects reduced-motion (no scale animation, tap still
 // works instantly).
+//
+// Built on Animated.createAnimatedComponent(Pressable) — a single animated
+// node that IS the Pressable, not a plain Pressable wrapping a separately
+// styled Animated.View child. An earlier version split them: the outer
+// Pressable got no style at all, so a caller's `flex: 1` / `width: '100%'`
+// only ever sized the inner child — the outer node the parent's flex layout
+// actually measures stayed unstyled and shrank to content size, with
+// nothing for that inner flex:1 to grow into. Every button built on this
+// component lost its "fill available space" sizing that way (reported: "os
+// botões... tem que usar o espaço que eles tem disponível, estilo fill
+// container"). Putting `style` (including the scale transform) directly on
+// the one animated Pressable node fixes that at the root.
 import React, { useRef } from 'react';
 import { Animated, Pressable, PressableProps } from 'react-native';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+
+const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
 
 export function AnimatedPressable({
   children,
@@ -30,18 +44,19 @@ export function AnimatedPressable({
   const scale = useRef(new Animated.Value(1)).current;
 
   return (
-    <Pressable
+    <AnimatedPressableBase
       {...rest}
-      onPressIn={(e) => {
+      onPressIn={(e: any) => {
         if (!reduced) Animated.spring(scale, { toValue: scaleTo, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
         onPressIn?.(e);
       }}
-      onPressOut={(e) => {
+      onPressOut={(e: any) => {
         if (!reduced) Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
         onPressOut?.(e);
       }}
+      style={[style, { transform: [{ scale }] }]}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressableBase>
   );
 }
