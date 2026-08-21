@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Text, View } from 'react-native';
 import { Icon } from '../components/icons/Icon';
-import { SparkleBurst } from '../components/motion/SparkleBurst';
+import { LottieBurst } from '../components/motion/LottieBurst';
 import { useTheme } from '../theme/ThemeContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -74,13 +74,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             opacity, transform: [{ translateY }],
           }}
         >
-          {toast.icon && (
-            <View>
-              <Icon name={toast.icon} size={16} color={colors.bg} />
-              {toast.sparkle && <SparkleBurst trigger={sparkleTrigger.current} color={colors.gold} size={11} />}
-            </View>
-          )}
+          {toast.icon && <Icon name={toast.icon} size={16} color={colors.bg} />}
           <Text style={{ color: colors.bg, fontFamily: font.uiMedium, fontSize: 14 }}>{toast.msg}</Text>
+          {toast.sparkle && <LottieBurst trigger={sparkleTrigger.current} size={110} />}
         </Animated.View>
       )}
     </ToastContext.Provider>

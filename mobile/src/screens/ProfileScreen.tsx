@@ -16,12 +16,13 @@
 // through `useTheme()`'s actual setters, so the equivalent functionality still
 // ships in-app instead of only existing in the prototyping tool.
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ScrollView, Switch, Text, View } from 'react-native';
 import { MarkerStyle, useTheme } from '../theme/ThemeContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useCar } from '../state/CarContext';
 import { useWatts } from '../state/WattsContext';
 import { Icon } from '../components/icons/Icon';
+import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { BrandMark } from '../components/BrandMark';
 import { ModalSheet } from '../components/sheets/ModalSheet';
 import { DATA } from '../data/data';
@@ -45,7 +46,7 @@ export function ProfileScreen() {
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <BrandMark size={22} />
-          <Pressable
+          <AnimatedPressable
             onPress={() => setSettingsOpen(true)}
             accessibilityRole="button"
             accessibilityLabel="Configurações"
@@ -60,7 +61,7 @@ export function ProfileScreen() {
             }}
           >
             <Icon name="settings" size={20} color={colors.ink} />
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {/* identity */}
@@ -173,7 +174,7 @@ export function ProfileScreen() {
               {car.battery} kWh · {car.connector} · {car.range} km
             </Text>
           </View>
-          <Pressable
+          <AnimatedPressable
             onPress={() => setCarPickerOpen(true)}
             accessibilityRole="button"
             accessibilityLabel="Trocar carro"
@@ -193,7 +194,7 @@ export function ProfileScreen() {
           >
             <Icon name="edit" size={14} color={colors.inkSoft} />
             <Text style={{ fontSize: 13, fontWeight: '600', color: colors.inkSoft }}>Trocar</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {/* achievements */}
@@ -329,7 +330,7 @@ function CarPickerSheet({
           {DATA.cars.map((c) => {
             const selected = c.id === selectedId;
             return (
-              <Pressable
+              <AnimatedPressable
                 key={c.id}
                 onPress={() => onPick(c.id)}
                 accessibilityRole="radio"
@@ -367,7 +368,7 @@ function CarPickerSheet({
                   </Text>
                 </View>
                 {selected && <Icon name="checkCircle" size={22} color={colors.primary} fill={colors.primarySoft} />}
-              </Pressable>
+              </AnimatedPressable>
             );
           })}
         </View>
@@ -410,7 +411,7 @@ function Segmented<T extends string>({
         {options.map((o) => {
           const selected = o.value === value;
           return (
-            <Pressable
+            <AnimatedPressable
               key={o.value}
               onPress={() => onChange(o.value)}
               accessibilityRole="radio"
@@ -433,7 +434,7 @@ function Segmented<T extends string>({
               >
                 {o.label}
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
       </View>

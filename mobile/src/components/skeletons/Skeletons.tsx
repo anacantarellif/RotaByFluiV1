@@ -3,31 +3,17 @@
 // See docs/LOADING-STATES.md.
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import shimmerSource from '../../assets/lottie/shimmer.json';
 
-function useShimmer() {
-  const reduced = useReducedMotion();
-  const opacity = useRef(new Animated.Value(reduced ? 0.55 : 0.35)).current;
-
-  useEffect(() => {
-    if (reduced) {
-      opacity.setValue(0.55);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.85, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.35, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduced, opacity]);
-
-  return opacity;
-}
-
+// Ported look was a plain pulsing-opacity block; now the designer-provided
+// shimmer Lottie sweeps across each block instead, clipped to its own
+// rounded rect (`overflow: 'hidden'` on the outer box — the block's shape,
+// not the animation's own 300×300 canvas, defines what's visible). Falls
+// back to a static, non-animated semi-transparent block under
+// reduced-motion, same as the block always did before this.
 export function Skeleton({
   w = '100%' as number | `${number}%`,
   h = 14,
@@ -40,13 +26,18 @@ export function Skeleton({
   style?: object;
 }) {
   const { colors } = useTheme();
-  const opacity = useShimmer();
+  const reduced = useReducedMotion();
   return (
-    <Animated.View
-      style={[{ width: w, height: h, borderRadius: r, backgroundColor: colors.surface3, opacity }, style]}
+    <View
+      style={[
+        { width: w, height: h, borderRadius: r, backgroundColor: colors.surface3, overflow: 'hidden', opacity: reduced ? 0.55 : 1 },
+        style,
+      ]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-    />
+    >
+      {!reduced && <LottieView source={shimmerSource} autoPlay loop resizeMode="cover" style={StyleSheet.absoluteFill} />}
+    </View>
   );
 }
 

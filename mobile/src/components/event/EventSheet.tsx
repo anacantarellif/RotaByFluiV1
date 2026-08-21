@@ -9,9 +9,10 @@
 // `Report` type name. `onClose` also doubles as the sheet's dismiss handler
 // (`ModalSheet`'s backdrop-tap / pan-down-to-close / `open` prop all resolve to it).
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Icon } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
+import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
 import { Report } from '../../data/types';
@@ -93,34 +94,27 @@ export function EventSheet({
           </View>
         ) : (
           <>
-            <Pressable
+            <AnimatedPressable
               onPress={confirm}
               accessibilityRole="button"
               accessibilityLabel="Confirmar reporte: continua assim, mais 20 Watts"
               hitSlop={4}
-              style={({ pressed }) => [
-                styles.btn,
-                styles.btnLg,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-              ]}
+              style={[styles.btn, styles.btnLg, { backgroundColor: colors.primary }]}
             >
               <Icon name="check" size={18} color={colors.primaryInk} />
               <Text style={[styles.btnTxt, { color: colors.primaryInk, fontFamily: font.uiSemibold }]}>
                 Continua assim · +20 Watts
               </Text>
-            </Pressable>
-            <Pressable
+            </AnimatedPressable>
+            <AnimatedPressable
               onPress={notAnymore}
               accessibilityRole="button"
               accessibilityLabel="Reportar que a situação não está mais assim"
               hitSlop={4}
-              style={({ pressed }) => [
-                styles.btn,
-                { backgroundColor: colors.surface3, marginTop: 8, opacity: pressed ? 0.85 : 1 },
-              ]}
+              style={[styles.btn, { backgroundColor: colors.surface3, marginTop: 8 }]}
             >
               <Text style={[styles.btnTxt, { color: colors.ink, fontFamily: font.uiSemibold }]}>Não está mais assim</Text>
-            </Pressable>
+            </AnimatedPressable>
           </>
         )}
       </View>

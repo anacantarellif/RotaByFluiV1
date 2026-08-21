@@ -12,10 +12,11 @@
 // the source RouteScreen/GuideDetail — grepped, zero occurrences — so it is not
 // wired here (per the porting task, only wire what the source actually calls).
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Seal } from '../components/icons/Icon';
+import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { GuideBrowser, GuideDetail } from '../components/guide/Guide';
 import { RouteHandoffSheet } from '../components/handoff/MapsHandoff';
 import { ModalSheet } from '../components/sheets/ModalSheet';
@@ -319,7 +320,7 @@ export function RouteScreen() {
               {/* "Destino" — a picker over real curated distances (DESTINATIONS),
                   not free text: typing here used to do nothing (the reported bug).
                   See the DESTINATIONS comment above. */}
-              <Pressable
+              <AnimatedPressable
                 onPress={() => setDestPickerOpen(true)}
                 accessibilityRole="button"
                 accessibilityLabel={`Destino: ${destination.label}, ${destination.distanceKm} quilômetros. Toque para trocar`}
@@ -336,7 +337,7 @@ export function RouteScreen() {
                   </Text>
                 </View>
                 <Icon name="chevD" size={18} color={colors.inkFaint} />
-              </Pressable>
+              </AnimatedPressable>
             </View>
           </View>
 
@@ -380,7 +381,7 @@ export function RouteScreen() {
             </Text>
           </View>
 
-          <Pressable
+          <AnimatedPressable
             onPress={() => {
               setDone(true);
               pushToast('Rota otimizada para o seu carro', 'check');
@@ -394,7 +395,7 @@ export function RouteScreen() {
           >
             <Icon name="route" size={18} color={colors.primaryInk} />
             <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>Calcular rota</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {done && (
@@ -504,7 +505,7 @@ export function RouteScreen() {
               })}
             </View>
 
-            <Pressable
+            <AnimatedPressable
               onPress={() =>
                 setPlannedHandoff({
                   id: 'planned',
@@ -559,11 +560,11 @@ export function RouteScreen() {
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>
                 Iniciar navegação
               </Text>
-            </Pressable>
+            </AnimatedPressable>
 
             {/* New — the source hid the curated Guia Flui itineraries entirely once a
                 route was calculated, with no way back except leaving the tab. */}
-            <Pressable
+            <AnimatedPressable
               onPress={() => setDone(false)}
               accessibilityRole="button"
               accessibilityLabel="Ver roteiros prontos"
@@ -576,7 +577,7 @@ export function RouteScreen() {
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 14.5, fontWeight: '700', color: colors.ink }}>
                 Ver roteiros prontos
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
         )}
 
@@ -659,9 +660,9 @@ function DestinationPickerSheet({
             style={{ flex: 1, minHeight: 48, fontFamily: font.ui, fontSize: 16, color: colors.ink }}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={8}>
+            <AnimatedPressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={8}>
               <Icon name="x" size={16} color={colors.inkFaint} />
-            </Pressable>
+            </AnimatedPressable>
           )}
         </View>
 
@@ -680,7 +681,7 @@ function DestinationPickerSheet({
           {results.map((d) => {
             const selected = d.id === selectedId;
             return (
-              <Pressable
+              <AnimatedPressable
                 key={d.id}
                 onPress={() => onPick(d.id)}
                 accessibilityRole="radio"
@@ -709,7 +710,7 @@ function DestinationPickerSheet({
                   </Text>
                 </View>
                 {selected && <Icon name="checkCircle" size={22} color={colors.primary} fill={colors.primarySoft} />}
-              </Pressable>
+              </AnimatedPressable>
             );
           })}
         </View>

@@ -3,73 +3,34 @@
 // see docs/HANDOFF.md §6 — triggered on arrival at a station, at the end of a
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Animated, Image, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
+import { LottieBurst } from '../motion/LottieBurst';
 import { useTheme } from '../../theme/ThemeContext';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { estimateDurationLabel, terrainForGuide } from '../../utils/duration';
 import { Guide, GuideStop, Station } from '../../data/types';
 
-// Small sparkle burst around the Selo Flui badge when the driver turns the
+// Sparkle burst around the Selo Flui badge when the driver turns the
 // indication on — a delightful flourish for what's otherwise a fairly plain
 // switch, and a concrete, positive interaction to animate rather than the
-// state changes covered elsewhere (loading, press feedback). No-ops entirely
-// under reduced-motion.
-const SPARKLE_OFFSETS = [
-  { x: -18, y: -16 },
-  { x: 16, y: -18 },
-  { x: -14, y: 14 },
-  { x: 18, y: 10 },
-];
-
+// state changes covered elsewhere (loading, press feedback). LottieBurst
+// itself no-ops under reduced-motion; a plain boolean `active` doesn't have
+// the "did this just change" trigger LottieBurst expects, so it's converted
+// to a counter that bumps only on the false→true edge.
 function SeloSparkles({ active }: { active: boolean }) {
-  const { colors } = useTheme();
-  const reduced = useReducedMotion();
-  const anims = useRef(SPARKLE_OFFSETS.map(() => new Animated.Value(0))).current;
+  const [trigger, setTrigger] = useState(0);
   const wasActive = useRef(active);
 
   useEffect(() => {
-    if (active && !wasActive.current && !reduced) {
-      anims.forEach((v) => v.setValue(0));
-      Animated.stagger(
-        55,
-        anims.map((v) => Animated.timing(v, { toValue: 1, duration: 560, useNativeDriver: true }))
-      ).start();
-    }
+    if (active && !wasActive.current) setTrigger((t) => t + 1);
     wasActive.current = active;
-  }, [active, reduced, anims]);
+  }, [active]);
 
-  if (reduced) return null;
-
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: 14, top: 14, width: 30, height: 30 }}>
-      {anims.map((v, i) => {
-        const { x, y } = SPARKLE_OFFSETS[i];
-        return (
-          <Animated.View
-            key={i}
-            style={{
-              position: 'absolute',
-              left: 15,
-              top: 15,
-              opacity: v.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
-              transform: [
-                { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, x] }) },
-                { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, y] }) },
-                { scale: v.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.4, 1, 0.6] }) },
-              ],
-            }}
-          >
-            <Icon name="sparkle" size={12} color={colors.gold} />
-          </Animated.View>
-        );
-      })}
-    </View>
-  );
+  return <LottieBurst trigger={trigger} size={140} />;
 }
 
 type Kind = 'station' | 'guide';
@@ -136,7 +97,7 @@ function StarRow({
       style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}
     >
       {[1, 2, 3, 4, 5].map((i) => (
-        <Pressable
+        <AnimatedPressable
           key={i}
           onPress={() => onChange(i)}
           accessibilityRole="radio"
@@ -151,7 +112,7 @@ function StarRow({
             color={i <= value ? colors.gold : colors.lineStrong}
             stroke={1.5}
           />
-        </Pressable>
+        </AnimatedPressable>
       ))}
     </View>
   );
@@ -196,7 +157,7 @@ function StopRating({
         style={{ flexDirection: 'row', gap: 1, flexShrink: 0 }}
       >
         {[1, 2, 3, 4, 5].map((i) => (
-          <Pressable
+          <AnimatedPressable
             key={i}
             onPress={() => onChange(i)}
             accessibilityRole="radio"
@@ -212,7 +173,7 @@ function StopRating({
               color={i <= value ? colors.gold : colors.lineStrong}
               stroke={1.6}
             />
-          </Pressable>
+          </AnimatedPressable>
         ))}
       </View>
     </View>
@@ -303,7 +264,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 {title}
               </Text>
             </View>
-            <Pressable
+            <AnimatedPressable
               onPress={onClose}
               accessibilityRole="button"
               accessibilityLabel="Fechar avaliação"
@@ -314,7 +275,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
               }}
             >
               <Icon name="x" size={20} color={colors.ink} />
-            </Pressable>
+            </AnimatedPressable>
           </View>
           <View
             accessibilityRole="image"
@@ -463,7 +424,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                   {GOOD[kind].map(([ic, label]) => {
                     const on = tags.includes(label);
                     return (
-                      <Pressable
+                      <AnimatedPressable
                         key={label}
                         onPress={() => toggleTag(label)}
                         accessibilityRole="switch"
@@ -478,7 +439,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                       >
                         <Icon name={ic} size={14} color={on ? colors.primaryInk : colors.primary} />
                         <Text style={{ fontSize: 13, fontWeight: '600', color: on ? colors.primaryInk : colors.inkSoft }}>{label}</Text>
-                      </Pressable>
+                      </AnimatedPressable>
                     );
                   })}
                 </View>
@@ -495,7 +456,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                         accessibilityLabel={`Foto ${i + 1} adicionada`}
                         style={{ width: 74, height: 74, borderRadius: 12, backgroundColor: colors.surface3 }}
                       />
-                      <Pressable
+                      <AnimatedPressable
                         onPress={() => removePhoto(uri)}
                         accessibilityRole="button"
                         accessibilityLabel={`Remover foto ${i + 1}`}
@@ -507,11 +468,11 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                         }}
                       >
                         <Icon name="x" size={11} color={colors.bg} />
-                      </Pressable>
+                      </AnimatedPressable>
                     </View>
                   ))}
                   {photos.length < 3 && (
-                    <Pressable
+                    <AnimatedPressable
                       onPress={pickPhoto}
                       accessibilityRole="button"
                       accessibilityLabel="Adicionar foto"
@@ -522,7 +483,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                     >
                       <Icon name="camera" size={20} color={colors.primary} />
                       <Text style={{ fontFamily: font.ui, fontSize: 10, fontWeight: '700', color: colors.primary }}>+50 W</Text>
-                    </Pressable>
+                    </AnimatedPressable>
                   )}
                 </View>
 
@@ -636,8 +597,8 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
               accessibilityLabel="Continuar"
               accessibilityState={{ disabled: !canNext }}
               style={{
-                width: '100%', minHeight: 44, alignItems: 'center', justifyContent: 'center',
-                borderRadius: 999, paddingVertical: 16, backgroundColor: colors.primary, opacity: canNext ? 1 : 0.5,
+                width: '100%', minHeight: 52, alignItems: 'center', justifyContent: 'center',
+                borderRadius: 999, paddingVertical: 15, paddingHorizontal: 20, backgroundColor: colors.primary, opacity: canNext ? 1 : 0.5,
               }}
             >
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>Continuar</Text>
@@ -661,11 +622,15 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 accessibilityRole="button"
                 accessibilityLabel={`Publicar avaliação, mais ${watts} watts`}
                 style={{
-                  flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 999, paddingVertical: 16, backgroundColor: colors.primary,
+                  flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center',
+                  borderRadius: 999, paddingVertical: 15, paddingHorizontal: 14, backgroundColor: colors.primary,
                 }}
               >
-                <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}
+                >
                   Publicar · +{watts} W
                 </Text>
               </AnimatedPressable>
@@ -677,8 +642,8 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
               accessibilityRole="button"
               accessibilityLabel="Concluir"
               style={{
-                width: '100%', minHeight: 44, alignItems: 'center', justifyContent: 'center',
-                borderRadius: 999, paddingVertical: 16, backgroundColor: colors.primary,
+                width: '100%', minHeight: 52, alignItems: 'center', justifyContent: 'center',
+                borderRadius: 999, paddingVertical: 15, paddingHorizontal: 20, backgroundColor: colors.primary,
               }}
             >
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>Concluir</Text>

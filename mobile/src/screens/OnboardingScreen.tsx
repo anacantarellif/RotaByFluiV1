@@ -12,11 +12,12 @@
 // charge-time calculation in the app (src/utils/evCharging.ts) needs a real
 // selected car to work from.
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, ScrollView, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useCar } from '../state/CarContext';
 import { Icon, Seal } from '../components/icons/Icon';
+import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { DATA } from '../data/data';
 
 const STEPS = 4;
@@ -136,7 +137,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 8 }} showsVerticalScrollIndicator={false}>
         {step > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-            <Pressable
+            <AnimatedPressable
               onPress={() => setStep(step - 1)}
               accessibilityRole="button"
               accessibilityLabel="Voltar para a etapa anterior"
@@ -150,7 +151,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
               }}
             >
               <Icon name="chevL" size={20} color={colors.ink} />
-            </Pressable>
+            </AnimatedPressable>
             <View
               style={{ flex: 1, height: 4, borderRadius: 3, backgroundColor: colors.surface3, overflow: 'hidden' }}
               accessibilityRole="progressbar"
@@ -166,7 +167,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
                 }}
               />
             </View>
-            <Pressable
+            <AnimatedPressable
               onPress={onDone}
               accessibilityRole="button"
               accessibilityLabel="Pular a introdução e entrar direto no app"
@@ -174,7 +175,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
               style={{ minHeight: 44, justifyContent: 'center' }}
             >
               <Text style={{ color: colors.inkSoft, fontSize: 13, fontFamily: font.uiSemibold }}>Pular</Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
         )}
 
@@ -234,7 +235,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
               {DATA.cars.map((c) => {
                 const selected = car === c.id;
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={c.id}
                     onPress={() => {
                       setCar(c.id);
@@ -275,7 +276,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
                       </Text>
                     </View>
                     {selected && <Icon name="checkCircle" size={22} color={colors.primary} fill={colors.primarySoft} />}
-                  </Pressable>
+                  </AnimatedPressable>
                 );
               })}
             </View>
@@ -300,7 +301,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
               {PREFS.map(([id, icon, label]) => {
                 const checked = prefs.includes(id);
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={id}
                     onPress={() => togglePref(id)}
                     accessibilityRole="checkbox"
@@ -319,7 +320,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
                   >
                     <Icon name={icon} size={24} color={colors.primary} />
                     <Text style={{ fontWeight: '700', fontSize: 14, color: colors.ink }}>{label}</Text>
-                  </Pressable>
+                  </AnimatedPressable>
                 );
               })}
             </View>
@@ -364,7 +365,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       </ScrollView>
 
       <View style={{ padding: 22, paddingTop: 12 }}>
-        <Pressable
+        <AnimatedPressable
           onPress={next}
           disabled={!canContinue}
           accessibilityRole="button"
@@ -386,7 +387,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
             {step === 0 ? 'Começar' : step === 3 ? 'Ativar e entrar' : 'Continuar'}
           </Text>
           {step !== 3 && <Icon name="chevR" size={18} color={colors.primaryInk} />}
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </View>
   );

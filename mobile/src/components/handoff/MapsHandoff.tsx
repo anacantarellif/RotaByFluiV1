@@ -41,8 +41,9 @@
 // degraded to a text-only destination with no waypoints. Reading the real
 // coordinates fixes that outright instead of matching harder.
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ModalSheet } from '../sheets/ModalSheet';
+import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { Icon, Seal } from '../icons/Icon';
 import { GoogleGlyph, WazeGlyph } from '../icons/BrandGlyphs';
 import { MiniMapPreview } from '../map/MiniMapPreview';
@@ -163,7 +164,7 @@ export function MapsHandoffSheet({
           {MAPS_APPS.map((a) => {
             const on = pick === a.id;
             return (
-              <Pressable
+              <AnimatedPressable
                 key={a.id}
                 onPress={() => setPick(a.id)}
                 accessibilityRole="radio"
@@ -201,12 +202,12 @@ export function MapsHandoffSheet({
                 <View style={[styles.radio, { borderColor: on ? colors.primary : colors.lineStrong }]}>
                   {on && <View style={[styles.radioInd, { backgroundColor: colors.primary }]} />}
                 </View>
-              </Pressable>
+              </AnimatedPressable>
             );
           })}
         </View>
 
-        <Pressable
+        <AnimatedPressable
           onPress={() => setRemember((r) => !r)}
           accessibilityRole="switch"
           accessibilityState={{ checked: remember }}
@@ -220,9 +221,9 @@ export function MapsHandoffSheet({
           <Text style={[styles.rememberText, { color: colors.inkSoft, fontFamily: font.uiSemibold }]}>
             Sempre abrir no {activeApp.name}
           </Text>
-        </Pressable>
+        </AnimatedPressable>
 
-        <Pressable
+        <AnimatedPressable
           onPress={go}
           accessibilityRole="button"
           accessibilityLabel={`Abrir no ${activeApp.name}`}
@@ -232,15 +233,15 @@ export function MapsHandoffSheet({
           <Text style={[styles.btnPrimaryText, { color: colors.primaryInk, fontFamily: font.uiSemibold }]}>
             Abrir no {activeApp.name}
           </Text>
-        </Pressable>
-        <Pressable
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Cancelar"
           style={[styles.btnGhost, { backgroundColor: colors.surface3, marginTop: 8 }]}
         >
           <Text style={[styles.btnGhostText, { color: colors.ink, fontFamily: font.uiSemibold, fontSize: space.ui }]}>Cancelar</Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </ModalSheet>
   );
@@ -301,7 +302,7 @@ export function RouteHandoffSheet({
           {routeApps.map((a) => {
             const on = pick === a.id;
             return (
-              <Pressable
+              <AnimatedPressable
                 key={a.id}
                 onPress={() => setPick(a.id as AppId)}
                 accessibilityRole="radio"
@@ -339,12 +340,12 @@ export function RouteHandoffSheet({
                 <View style={[styles.radio, { borderColor: on ? colors.primary : colors.lineStrong }]}>
                   {on && <View style={[styles.radioInd, { backgroundColor: colors.primary }]} />}
                 </View>
-              </Pressable>
+              </AnimatedPressable>
             );
           })}
         </View>
 
-        <Pressable
+        <AnimatedPressable
           onPress={go}
           accessibilityRole="button"
           accessibilityLabel={`Abrir no ${pick === 'gmaps' ? 'Google Maps' : 'Waze'}`}
@@ -354,15 +355,15 @@ export function RouteHandoffSheet({
           <Text style={[styles.btnPrimaryText, { color: colors.primaryInk, fontFamily: font.uiSemibold }]}>
             Abrir no {pick === 'gmaps' ? 'Google Maps' : 'Waze'}
           </Text>
-        </Pressable>
-        <Pressable
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Cancelar"
           style={[styles.btnGhost, { backgroundColor: colors.surface3, marginTop: 8 }]}
         >
           <Text style={[styles.btnGhostText, { color: colors.ink, fontFamily: font.uiSemibold, fontSize: space.ui }]}>Cancelar</Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </ModalSheet>
   );

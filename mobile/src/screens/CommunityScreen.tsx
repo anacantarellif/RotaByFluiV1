@@ -3,9 +3,10 @@
 // PORTING_GUIDE.md's "one file per source domain" — they live here instead of a
 // separate shared file.
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '../components/icons/Icon';
+import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { useTheme } from '../theme/ThemeContext';
 import { DATA } from '../data/data';
 import { FeedItem as FeedItemT, Mission } from '../data/types';
@@ -128,7 +129,7 @@ function FeedItem({ f }: { f: FeedItemT }) {
               porting task's accessibility rule ("curtir"/"comentar" icon buttons need
               labels) they're proper `accessibilityRole="button"` touch targets with
               real labels instead of unlabeled icon+number pairs. */}
-          <Pressable
+          <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel={`Curtir, ${f.likes} curtidas`}
             hitSlop={8}
@@ -136,8 +137,8 @@ function FeedItem({ f }: { f: FeedItemT }) {
           >
             <Icon name="thumb" size={16} color={colors.inkSoft} />
             <Text style={{ fontSize: 13, color: colors.inkSoft }}>{f.likes}</Text>
-          </Pressable>
-          <Pressable
+          </AnimatedPressable>
+          <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel={`Comentar, ${f.comments} comentários`}
             hitSlop={8}
@@ -145,15 +146,15 @@ function FeedItem({ f }: { f: FeedItemT }) {
           >
             <Icon name="msg" size={16} color={colors.inkSoft} />
             <Text style={{ fontSize: 13, color: colors.inkSoft }}>{f.comments}</Text>
-          </Pressable>
-          <Pressable
+          </AnimatedPressable>
+          <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel="Compartilhar publicação"
             hitSlop={8}
             style={{ marginLeft: 'auto', minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' }}
           >
             <Icon name="share" size={16} color={colors.inkSoft} />
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </View>
     </View>
@@ -241,7 +242,7 @@ export function CommunityScreen() {
           {/* Source's `.seg button` is visually 38px tall (a genuine a11y gap in the
               prototype); PORTING_GUIDE.md requires ≥44px touch targets, so hitSlop
               pads the touchable area without changing the compact visual size. */}
-          <Pressable
+          <AnimatedPressable
             onPress={() => setTab('feed')}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === 'feed' }}
@@ -254,8 +255,8 @@ export function CommunityScreen() {
             <Text style={{ fontFamily: font.uiSemibold, fontWeight: '700', fontSize: 13, color: tab === 'feed' ? colors.ink : colors.inkSoft }}>
               Atividade
             </Text>
-          </Pressable>
-          <Pressable
+          </AnimatedPressable>
+          <AnimatedPressable
             onPress={() => setTab('rank')}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === 'rank' }}
@@ -268,7 +269,7 @@ export function CommunityScreen() {
             <Text style={{ fontFamily: font.uiSemibold, fontWeight: '700', fontSize: 13, color: tab === 'rank' ? colors.ink : colors.inkSoft }}>
               Ranking
             </Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {tab === 'rank' ? (

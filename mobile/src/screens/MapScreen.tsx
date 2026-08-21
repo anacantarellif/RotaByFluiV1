@@ -16,7 +16,7 @@
 // is gone (MapsHandoffSheet navigates via useNavigation() itself), and `density`/
 // `showReports` read from useTheme() instead of being passed in.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, Image, ScrollView, Text, TextInput, View } from 'react-native';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
 import { AMEN, AVAIL, Stars, StationSheet } from '../components/station/Station';
@@ -24,6 +24,7 @@ import { EventSheet } from '../components/event/EventSheet';
 import { MapsHandoffSheet } from '../components/handoff/MapsHandoff';
 import { RateFlow } from '../components/rating/RateFlow';
 import { ModalSheet } from '../components/sheets/ModalSheet';
+import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { ListSkeleton } from '../components/skeletons/Skeletons';
 import { useDelay } from '../hooks/useDelay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -138,31 +139,29 @@ function Chip({
   const textColor = fill.interpolate({ inputRange: [0, 1], outputRange: [colors.ink, '#ffffff'] });
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole={role}
       accessibilityState={role === 'button' ? undefined : { checked: !!active }}
       accessibilityLabel={a11yLabel ?? label}
       hitSlop={4}
+      scaleTo={0.94}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        minHeight: 36,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 100,
+        backgroundColor,
+        borderWidth: 1.5,
+        borderColor,
+      }}
     >
-      <Animated.View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          minHeight: 36,
-          paddingVertical: 8,
-          paddingHorizontal: 14,
-          borderRadius: 100,
-          backgroundColor,
-          borderWidth: 1.5,
-          borderColor,
-        }}
-      >
-        {iconElement ?? (icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />)}
-        <Animated.Text style={{ fontFamily: font.uiSemibold, fontSize: 12.5, color: textColor }}>{label}</Animated.Text>
-      </Animated.View>
-    </Pressable>
+      {iconElement ?? (icon && <Icon name={icon} size={14} color={active ? '#fff' : colors.primary} />)}
+      <Animated.Text style={{ fontFamily: font.uiSemibold, fontSize: 12.5, color: textColor }}>{label}</Animated.Text>
+    </AnimatedPressable>
   );
 }
 
@@ -211,7 +210,7 @@ function FilterSheet({
               Refinar busca
             </Text>
           </View>
-          <Pressable
+          <AnimatedPressable
             onPress={() => setLocal(EMPTY_ADV)}
             accessibilityRole="button"
             accessibilityLabel="Limpar filtros"
@@ -219,7 +218,7 @@ function FilterSheet({
             style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 100, backgroundColor: colors.surface2 }}
           >
             <Text style={{ fontFamily: font.uiSemibold, fontSize: 13, color: colors.ink }}>Limpar</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         <FilterSection title="Avaliação">
@@ -312,7 +311,7 @@ function FilterSheet({
           </View>
         </FilterSection>
 
-        <Pressable
+        <AnimatedPressable
           onPress={() => onApply(local)}
           accessibilityRole="button"
           style={{
@@ -328,7 +327,7 @@ function FilterSheet({
           <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, color: colors.primaryInk }}>
             Ver {live} {live === 1 ? 'ponto' : 'pontos'}
           </Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </ModalSheet>
   );
@@ -400,7 +399,7 @@ function ReportSheet({
             const on = sel === r.id;
             const c = colors[r.colorToken];
             return (
-              <Pressable
+              <AnimatedPressable
                 key={r.id}
                 onPress={() => setSel(r.id)}
                 accessibilityRole="radio"
@@ -432,11 +431,11 @@ function ReportSheet({
                   <Icon name={r.icon} size={20} color={c} />
                 </View>
                 <Text style={{ fontSize: 12, fontWeight: '700', textAlign: 'center', color: colors.ink }}>{r.label}</Text>
-              </Pressable>
+              </AnimatedPressable>
             );
           })}
         </View>
-        <Pressable
+        <AnimatedPressable
           onPress={() => sel && onDone(REPORT_TYPES.find((r) => r.id === sel)!)}
           disabled={!sel}
           accessibilityRole="button"
@@ -453,7 +452,7 @@ function ReportSheet({
           }}
         >
           <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, color: colors.primaryInk }}>Enviar reporte · +{REPORT_WATTS} Watts</Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </ModalSheet>
   );
@@ -465,10 +464,11 @@ function ListRow({ st, onOpen }: { st: Station; onOpen: (st: Station) => void })
   const { colors, font, space } = useTheme();
   const avColor = colors[st.avail];
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={() => onOpen(st)}
       accessibilityRole="button"
       accessibilityLabel={`${st.name}, ${AVAIL[st.avail]}, ${st.free} de ${st.total} livres, ${st.dist}`}
+      scaleTo={0.98}
       style={{
         flexDirection: 'row',
         gap: 12,
@@ -521,7 +521,7 @@ function ListRow({ st, onOpen }: { st: Station; onOpen: (st: Station) => void })
           </Text>
         </View>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -539,13 +539,13 @@ function EmptyResults({ onClear }: { onClear: () => void }) {
       <Text style={{ fontSize: 13.5, marginBottom: 14, color: colors.inkSoft, textAlign: 'center' }}>
         Tente ampliar a potência ou remover comodidades.
       </Text>
-      <Pressable
+      <AnimatedPressable
         onPress={onClear}
         accessibilityRole="button"
         style={{ minHeight: 44, justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 100, backgroundColor: colors.primary }}
       >
         <Text style={{ fontFamily: font.uiSemibold, fontSize: 14, color: colors.primaryInk }}>Limpar filtros</Text>
-      </Pressable>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -698,12 +698,12 @@ export function MapScreen() {
             style={{ flex: 1, minHeight: 44, fontFamily: font.ui, fontSize: 15, color: colors.ink }}
           />
           {!!q && (
-            <Pressable onPress={() => setQ('')} accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={8}>
+            <AnimatedPressable onPress={() => setQ('')} accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={8}>
               <Icon name="x" size={14} color={colors.inkFaint} />
-            </Pressable>
+            </AnimatedPressable>
           )}
           <View style={{ flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 100, padding: 2 }}>
-            <Pressable
+            <AnimatedPressable
               onPress={() => setView('map')}
               accessibilityRole="button"
               accessibilityState={{ selected: view === 'map' }}
@@ -712,8 +712,8 @@ export function MapScreen() {
               style={{ padding: 8, borderRadius: 100, backgroundColor: view === 'map' ? colors.surface : 'transparent' }}
             >
               <Icon name="map" size={16} color={view === 'map' ? colors.primary : colors.inkFaint} />
-            </Pressable>
-            <Pressable
+            </AnimatedPressable>
+            <AnimatedPressable
               onPress={() => setView('list')}
               accessibilityRole="button"
               accessibilityState={{ selected: view === 'list' }}
@@ -722,7 +722,7 @@ export function MapScreen() {
               style={{ padding: 8, borderRadius: 100, backgroundColor: view === 'list' ? colors.surface : 'transparent' }}
             >
               <Icon name="layers" size={16} color={view === 'list' ? colors.primary : colors.inkFaint} />
-            </Pressable>
+            </AnimatedPressable>
           </View>
         </View>
 
@@ -762,9 +762,9 @@ export function MapScreen() {
               <Text accessibilityLiveRegion="polite" style={{ fontSize: 12.5, fontWeight: '600', color: colors.inkFaint }}>
                 {visible.length} {visible.length === 1 ? 'ponto encontrado' : 'pontos encontrados'}
               </Text>
-              <Pressable onPress={clearAll} accessibilityRole="button" accessibilityLabel="Limpar todos os filtros" hitSlop={6}>
+              <AnimatedPressable onPress={clearAll} accessibilityRole="button" accessibilityLabel="Limpar todos os filtros" hitSlop={6}>
                 <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.primary }}>Limpar tudo</Text>
-              </Pressable>
+              </AnimatedPressable>
             </View>
           )}
         </View>
@@ -778,7 +778,7 @@ export function MapScreen() {
 
       {view === 'map' && !active && (
         <View style={{ position: 'absolute', right: 14, bottom: 22, gap: 12 }}>
-          <Pressable
+          <AnimatedPressable
             onPress={() => pushToast('Camadas do mapa')}
             accessibilityRole="button"
             accessibilityLabel="Camadas do mapa"
@@ -796,8 +796,8 @@ export function MapScreen() {
             }}
           >
             <Icon name="layers" size={20} color={colors.ink} />
-          </Pressable>
-          <Pressable
+          </AnimatedPressable>
+          <AnimatedPressable
             onPress={() => setRecenter((r) => r + 1)}
             accessibilityRole="button"
             accessibilityLabel="Centralizar na minha localização"
@@ -815,7 +815,7 @@ export function MapScreen() {
             }}
           >
             <Icon name="crosshair" size={20} color={colors.primary} />
-          </Pressable>
+          </AnimatedPressable>
         </View>
       )}
 

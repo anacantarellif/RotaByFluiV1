@@ -10,8 +10,9 @@
 // is dropped as a result (no equivalent prop on the shared component); a minor,
 // intentional visual loss, not a functional one.
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon, IconName, Seal, SeloRow } from '../icons/Icon';
+import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
 import { estimateDurationLabel, terrainForGuide } from '../../utils/duration';
@@ -92,7 +93,7 @@ export function GuideCard({ g, onOpen }: { g: Guide; onOpen: () => void }) {
   const { colors, font, space } = useTheme();
   const durationLabel = estimateDurationLabel(g.distance, terrainForGuide(g));
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={`${g.title}, ${g.region}, Selo Flui nível ${g.selo}, ${g.distance} km, ${durationLabel}`}
@@ -118,7 +119,7 @@ export function GuideCard({ g, onOpen }: { g: Guide; onOpen: () => void }) {
         <Text style={{ fontSize: 13.5, lineHeight: 19.5, marginBottom: 12, color: colors.inkSoft }}>{g.blurb}</Text>
         <GuideMeta g={g} />
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -257,7 +258,7 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 96 }} showsVerticalScrollIndicator={false}>
         <CoverPhoto height={210} radius={0} cover={g.cover} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
-          <Pressable
+          <AnimatedPressable
             onPress={onBack}
             accessibilityRole="button"
             accessibilityLabel="Voltar aos roteiros"
@@ -268,8 +269,8 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
             }}
           >
             <Icon name="chevL" size={20} color={colors.ink} />
-          </Pressable>
-          <Pressable
+          </AnimatedPressable>
+          <AnimatedPressable
             onPress={() => pushToast('Roteiro copiado para compartilhar')}
             accessibilityRole="button"
             accessibilityLabel="Compartilhar roteiro"
@@ -280,7 +281,7 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
             }}
           >
             <Icon name="share" size={18} color={colors.ink} />
-          </Pressable>
+          </AnimatedPressable>
           <View style={{ position: 'absolute', left: 16, bottom: 14 }}>
             <View style={{ backgroundColor: 'rgba(20,14,24,0.62)', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 7 }}>
               <Text style={{ fontFamily: font.mono, fontSize: 10, fontWeight: '600', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.9 }}>
@@ -348,7 +349,7 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
             {/* Per product decision there's no in-app turn-by-turn screen — this
                 used to be two buttons (start in-app vs. hand off to Maps/Waze);
                 now there's only one real path, so one button. */}
-            <Pressable
+            <AnimatedPressable
               onPress={() => setMapsOut(true)}
               accessibilityRole="button"
               accessibilityLabel={`Iniciar o roteiro ${g.title} no Google Maps ou Waze`}
@@ -361,8 +362,8 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 16, fontWeight: '700', color: colors.primaryInk }}>
                 Iniciar este roteiro
               </Text>
-            </Pressable>
-            <Pressable
+            </AnimatedPressable>
+            <AnimatedPressable
               onPress={() => onRateGuide?.(g)}
               accessibilityRole="button"
               accessibilityLabel={`Avaliar o roteiro ${g.title}`}
@@ -375,8 +376,8 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 15, fontWeight: '700', color: colors.ink }}>
                 Avaliar este roteiro
               </Text>
-            </Pressable>
-            <Pressable
+            </AnimatedPressable>
+            <AnimatedPressable
               onPress={onBack}
               accessibilityRole="button"
               accessibilityLabel="Voltar aos roteiros"
@@ -386,7 +387,7 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
               }}
             >
               <Text style={{ fontFamily: font.uiSemibold, fontSize: 15, fontWeight: '700', color: colors.ink }}>Voltar aos roteiros</Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
       </ScrollView>
 
@@ -432,7 +433,7 @@ export function GuideBrowser({ onOpen }: { onOpen: (g: Guide) => void }) {
         {GUIDE_CATS.map(([id, lb]) => {
           const on = cat === id;
           return (
-            <Pressable
+            <AnimatedPressable
               key={id}
               onPress={() => setCat(id)}
               accessibilityRole="radio"
@@ -445,7 +446,7 @@ export function GuideBrowser({ onOpen }: { onOpen: (g: Guide) => void }) {
               }}
             >
               <Text style={{ fontSize: 13, fontWeight: '600', color: on ? colors.primaryInk : colors.inkSoft }}>{lb}</Text>
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
       </View>

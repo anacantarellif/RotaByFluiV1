@@ -6,11 +6,12 @@
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
+import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { StationSkeleton } from '../skeletons/Skeletons';
 import { useDelay } from '../../hooks/useDelay';
 import { ROTA_CONFIG } from '../../config';
@@ -246,10 +247,11 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
 
   return (
     <>
-      <Pressable
+      <AnimatedPressable
         onPress={onOpen}
         accessibilityRole="button"
         accessibilityLabel={`Abrir ficha completa de ${st.name}`}
+        scaleTo={0.98}
         style={{ paddingHorizontal: space.pad, paddingTop: 6 }}
       >
         <View style={{ flexDirection: 'row', gap: 14 }}>
@@ -275,10 +277,10 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
             <SeloBadge level={st.selo} />
           </View>
         )}
-      </Pressable>
+      </AnimatedPressable>
 
       <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: space.pad, paddingTop: 14 }}>
-        <TouchableOpacity
+        <AnimatedPressable
           onPress={() => onNavigate(st)}
           accessibilityRole="button"
           style={{
@@ -294,8 +296,8 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
         >
           <Icon name="nav" size={18} color={colors.primaryInk} />
           <Text style={{ fontFamily: font.uiSemibold, fontSize: space.ui, color: colors.primaryInk }}>Navegar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={onOpen}
           accessibilityRole="button"
           hitSlop={8}
@@ -310,7 +312,7 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
           }}
         >
           <Text style={{ fontFamily: font.uiSemibold, fontSize: space.ui, color: colors.ink }}>Ver ficha</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     </>
   );
@@ -367,7 +369,7 @@ function StationDetailContent({
                   seed={`${st.id}-hero`}
                 >
                   <View style={{ position: 'absolute', top: 12, right: 12, flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
+                    <AnimatedPressable
                       onPress={onClose}
                       accessibilityRole="button"
                       accessibilityLabel="Fechar ficha do ponto"
@@ -381,7 +383,7 @@ function StationDetailContent({
                       }}
                     >
                       <Icon name="chevD" size={20} color={colors.ink} />
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                   </View>
                   {st.selo > 0 && (
                     <View style={{ position: 'absolute', bottom: 12, left: 12 }}>
@@ -576,7 +578,7 @@ function StationDetailContent({
                   >
                     Vozes da comunidade
                   </Text>
-                  <TouchableOpacity
+                  <AnimatedPressable
                     onPress={() => onRate?.(st)}
                     accessibilityRole="button"
                     hitSlop={8}
@@ -593,7 +595,7 @@ function StationDetailContent({
                   >
                     <Icon name="edit" size={15} color={colors.ink} />
                     <Text style={{ fontFamily: font.uiSemibold, fontSize: 13, color: colors.ink }}>Avaliar</Text>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 </View>
 
                 {reviews.length === 0 && (
@@ -610,7 +612,7 @@ function StationDetailContent({
                     <Text style={{ fontSize: 14, color: colors.inkSoft, textAlign: 'center' }}>
                       Seja o primeiro a avaliar este ponto.
                     </Text>
-                    <TouchableOpacity
+                    <AnimatedPressable
                       onPress={() => onRate?.(st)}
                       accessibilityRole="button"
                       style={{
@@ -624,7 +626,7 @@ function StationDetailContent({
                       <Text style={{ fontFamily: font.uiSemibold, fontSize: space.ui, color: colors.primaryInk }}>
                         Escrever avaliação
                       </Text>
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                   </View>
                 )}
 
@@ -717,7 +719,7 @@ function StationDetailContent({
             backgroundColor: colors.surface,
           }}
         >
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => onFav(st)}
             accessibilityRole="button"
             accessibilityLabel={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
@@ -732,8 +734,8 @@ function StationDetailContent({
             }}
           >
             <Icon name="heart" size={20} fill={fav ? colors.off : 'none'} color={fav ? colors.off : colors.ink} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AnimatedPressable>
+          <AnimatedPressable
             onPress={() => onReport?.(st)}
             accessibilityRole="button"
             accessibilityLabel="Reportar problema neste ponto"
@@ -747,8 +749,8 @@ function StationDetailContent({
             }}
           >
             <Icon name="alert" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AnimatedPressable>
+          <AnimatedPressable
             onPress={() => onNavigate(st)}
             accessibilityRole="button"
             style={{
@@ -764,7 +766,7 @@ function StationDetailContent({
           >
             <Icon name="nav" size={18} color={colors.primaryInk} />
             <Text style={{ fontFamily: font.uiSemibold, fontSize: space.ui, color: colors.primaryInk }}>Iniciar rota</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       </View>
   );

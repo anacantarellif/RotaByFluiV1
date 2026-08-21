@@ -70,6 +70,18 @@ export function ModalSheet({
       snapPoints={points}
       onDismiss={onClose}
       enablePanDownToClose
+      // @gorhom/bottom-sheet defaults this to true, which makes the sheet
+      // auto-size to its rendered content's natural height instead of
+      // respecting `snapPoints`/`index` above — every *Sheet in this app
+      // passes explicit snapPoints expecting them to be authoritative (e.g.
+      // RateFlow's single `['92%']` point, meant to open already fully
+      // expanded), so this was silently overridden the whole time: sheets
+      // opened sized to however tall their content happened to measure,
+      // squeezing flex-based layouts like RateFlow's header/scroll-body/
+      // footer column into less height than they were built for (reported:
+      // the rating sheet not opening already expanded, and its footer button
+      // looking undersized as a result).
+      enableDynamicSizing={false}
       // Default stack behavior ('switch') *minimizes* whatever sheet is already
       // registered when a new one mounts, instead of dismissing it — harmless
       // when only one sheet is ever open, but here a station's peek→ficha→handoff

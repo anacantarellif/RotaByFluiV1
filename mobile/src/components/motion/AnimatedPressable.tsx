@@ -6,7 +6,7 @@
 // flow specifically). Respects reduced-motion (no scale animation, tap still
 // works instantly).
 import React, { useRef } from 'react';
-import { Animated, Pressable, PressableProps, StyleProp, ViewStyle } from 'react-native';
+import { Animated, Pressable, PressableProps } from 'react-native';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 export function AnimatedPressable({
@@ -18,7 +18,12 @@ export function AnimatedPressable({
   ...rest
 }: Omit<PressableProps, 'style' | 'children'> & {
   children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
+  // Typed loosely on purpose: plain ViewStyle covers most callers, but
+  // several (e.g. Chip) pass an Animated-interpolated style object straight
+  // through to get both that color animation and this component's own
+  // press-scale on the same element — RN's own StyleProp<Animated...> generic
+  // nesting fights TS here, and it's not worth fighting for an internal prop.
+  style?: any;
   scaleTo?: number;
 }) {
   const reduced = useReducedMotion();

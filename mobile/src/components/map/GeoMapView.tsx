@@ -9,8 +9,9 @@
 // Same props, same markers, same callbacks either way — see docs/MAPS.md §1 for the
 // full rationale and what still needs a real key to ship on Android.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import LottieView from 'lottie-react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { ROTA_CONFIG } from '../../config';
 import { DATA } from '../../data/data';
@@ -19,6 +20,7 @@ import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT } from './mapStyles';
 import { pinLabel, ReportPin, StationPin } from './MarkerPins';
 import { MapSkeleton } from '../skeletons/Skeletons';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import pulseDotSource from '../../assets/lottie/pulseDot.json';
 
 const DELTA = 0.09;
 
@@ -138,45 +140,41 @@ export function GeoMapView({
 }
 
 // Ported from styles.css `.userdot .pulse` — an expanding, fading ring behind
-// the solid position dot, looping. Marked `tracksViewChanges={false}` on its
-// <Marker> (GeoMapView above), so this needs to run as a native-driven
-// animation the OS can composite without React re-measuring the marker every
-// frame — `useNativeDriver: true` on both legs does that.
+// the solid position dot, looping. Now the designer-provided pulseDot Lottie
+// (which already draws its own center dot plus two staggered rings) instead
+// of a hand-rolled Animated.Value ring; colorFilters remaps its baked-in blue
+// to the theme's primary color (light/dark have different values) so it
+// stays on-brand. Marked `tracksViewChanges` true on its <Marker>
+// (GeoMapView above) so react-native-maps keeps re-rasterizing the animated
+// frames instead of freezing the first one.
 function UserDot() {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
-  const pulse = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (reduced) return;
-    const loop = Animated.loop(
-      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: true })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reduced, pulse]);
-
-  return (
-    <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}>
-      {!reduced && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            width: 18,
-            height: 18,
-            borderRadius: 9,
-            backgroundColor: colors.primary,
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 4.5] }) }],
-          }}
-        />
-      )}
+  if (reduced) {
+    return (
       <View
         style={{
           width: 18, height: 18, borderRadius: 9,
           backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
           shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
         }}
+      />
+    );
+  }
+
+  return (
+    <View style={{ width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
+      <LottieView
+        source={pulseDotSource}
+        autoPlay
+        loop
+        colorFilters={[
+          { keypath: 'Shape Layer 1', color: colors.primary },
+          { keypath: 'Shape Layer 2', color: colors.primary },
+          { keypath: 'Shape Layer 3', color: colors.primary },
+        ]}
+        style={{ width: 60, height: 60 }}
       />
     </View>
   );
