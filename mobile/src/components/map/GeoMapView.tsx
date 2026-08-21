@@ -9,9 +9,8 @@
 // Same props, same markers, same callbacks either way — see docs/MAPS.md §1 for the
 // full rationale and what still needs a real key to ship on Android.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
-import LottieView from 'lottie-react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { ROTA_CONFIG } from '../../config';
 import { DATA } from '../../data/data';
@@ -20,7 +19,6 @@ import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT } from './mapStyles';
 import { pinLabel, ReportPin, StationPin } from './MarkerPins';
 import { MapSkeleton } from '../skeletons/Skeletons';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import pulseDotSource from '../../assets/lottie/pulseDot.json';
 
 const DELTA = 0.09;
 
@@ -140,41 +138,53 @@ export function GeoMapView({
 }
 
 // Ported from styles.css `.userdot .pulse` — an expanding, fading ring behind
-// the solid position dot, looping. Now the designer-provided pulseDot Lottie
-// (which already draws its own center dot plus two staggered rings) instead
-// of a hand-rolled Animated.Value ring; colorFilters remaps its baked-in blue
-// to the theme's primary color (light/dark have different values) so it
-// stays on-brand. Marked `tracksViewChanges` true on its <Marker>
-// (GeoMapView above) so react-native-maps keeps re-rasterizing the animated
-// frames instead of freezing the first one.
+// the solid position dot, looping.
+//
+// Briefly swapped for the designer-provided pulseDot Lottie, which had to be
+// reverted: embedding a LottieView inside a react-native-maps Marker doesn't
+// snapshot reliably on Android — Lottie draws through its own native path,
+// which doesn't consistently participate in the bitmap capture
+// react-native-maps uses for marker content. Reported and confirmed by
+// screenshot: the pulse rendered as a flat-topped half-disk instead of a full
+// ring, while the plain-View station pins right next to it in the same
+// screenshot were completely intact — the clipping was specific to the one
+// marker with a native view embedded in it, not a general marker-sizing
+// issue. Plain Animated.View (no embedded native view) is what station pins
+// already use safely, so that's what this goes back to.
 function UserDot() {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
+  const pulse = useRef(new Animated.Value(0)).current;
 
-  if (reduced) {
-    return (
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, pulse]);
+
+  return (
+    <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
+      {!reduced && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: colors.primary,
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 4.5] }) }],
+          }}
+        />
+      )}
       <View
         style={{
           width: 18, height: 18, borderRadius: 9,
           backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
-          shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
         }}
-      />
-    );
-  }
-
-  return (
-    <View style={{ width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
-      <LottieView
-        source={pulseDotSource}
-        autoPlay
-        loop
-        colorFilters={[
-          { keypath: 'Shape Layer 1', color: colors.primary },
-          { keypath: 'Shape Layer 2', color: colors.primary },
-          { keypath: 'Shape Layer 3', color: colors.primary },
-        ]}
-        style={{ width: 60, height: 60 }}
       />
     </View>
   );

@@ -792,25 +792,6 @@ export function MapScreen() {
       {view === 'map' && !active && (
         <View style={{ position: 'absolute', right: 14, bottom: 22, gap: 12 }}>
           <AnimatedPressable
-            onPress={() => pushToast('Camadas do mapa')}
-            accessibilityRole="button"
-            accessibilityLabel="Camadas do mapa"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.surface,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOpacity: 0.12,
-              shadowRadius: 6,
-              elevation: 3,
-            }}
-          >
-            <Icon name="layers" size={20} color={colors.ink} />
-          </AnimatedPressable>
-          <AnimatedPressable
             onPress={() => setRecenter((r) => r + 1)}
             accessibilityRole="button"
             accessibilityLabel="Centralizar na minha localização"
