@@ -60,28 +60,47 @@ const PIN_PATH =
 
 // Selo Flui badge, inlined from Icon.tsx's <Seal> (its outer ring + bolt
 // paths, 27×27 viewBox) instead of rendering that component's own <Svg>.
-// Reported: with the crown as a *second*, separate react-native-svg <Svg>
-// stacked above the pin's <Svg> in one marker, EVERY station pin got
-// clipped to its top arc — including ones without a selo, once an earlier
-// fix made the crown slot always present (just opacity-toggled) so every
-// pin shared one tree shape. That ruled out "conditional layout" as the
-// cause: two separate native <Svg> root views stacked inside one marker is
-// what breaks, regardless of visibility — each is its own custom-shadow-node
-// native component (react-native-svg's), nested inside react-native-maps'
-// own custom SizeReportingShadowNode marker view, and two different
-// libraries' custom shadow node types don't appear to compose reliably
-// there. A single <Svg> (ReportPin's one <Icon>, or a selo-less pin before
-// the crown-always-present change) always rendered fine. Fix: one <Svg> per
-// marker, period — crown and pin drawn as two <G> groups inside it instead
-// of two separate <Svg> elements.
+//
+// This went through two wrong theories before landing here. First: the
+// crown as a *second* <Svg> stacked above the pin's — merging both into one
+// <Svg> (two <G> groups) didn't fix it, ruling that out. Second, briefly:
+// stacking the crown ABOVE the pin, growing the canvas taller (e.g. 35 units
+// tall × 24 wide for a selo'd pin vs. a plain 24×24 square without one).
+// Screenshot evidence across *every* shape tried this session (the original
+// CSS diamond, the two-Svg pin, the merged-Svg pin) is 100% consistent: the
+// one pin that ever rendered intact never had a crown — i.e. was square —
+// and every crown+pin combination, regardless of how it was built
+// underneath, came out clipped to its top portion. The common factor was
+// never the crown's content or SVG count — it's that adding the crown above
+// the pin always made the marker's bounding box taller than wide (portrait),
+// where every reliably-correct marker in this app (ReportPin, a crown-less
+// pin) has stayed roughly square. That points at react-native-maps' Android
+// bitmap capture capping a marker's height to roughly its width rather than
+// properly respecting a taller box.
+//
+// Fix: never grow the canvas. The crown is drawn as a small badge *inside*
+// the same 24×24 square the pin alone already uses (slightly overlapping
+// its top edge, like a notification badge on an avatar), instead of adding
+// height above it — every station marker is the same square size regardless
+// of selo.
 const CROWN_RING_PATH =
   'M14.8627 24.8277C13.9777 25.6995 12.5585 25.7047 11.667 24.8397L9.99827 23.2204C9.57176 22.8065 9.00082 22.575 8.40651 22.575H6.19392C4.93156 22.575 3.90821 21.5517 3.90821 20.2893V18.0968C3.90821 17.4906 3.6674 16.9092 3.23874 16.4805L1.61612 14.8579C0.723495 13.9653 0.723495 12.5181 1.61612 11.6254L3.23874 10.0028C3.6674 9.57415 3.90821 8.99277 3.90821 8.38656V6.19405C3.90821 4.93168 4.93156 3.90833 6.19393 3.90833H8.39141C8.99468 3.90833 9.57348 3.66984 10.0016 3.24486L11.6484 1.61027C12.5444 0.720949 13.9916 0.72635 14.8809 1.62233L16.4794 3.2328C16.9085 3.66516 17.4925 3.90833 18.1017 3.90833H20.2892C21.5515 3.90833 22.5749 4.93168 22.5749 6.19405V8.38656C22.5749 8.99277 22.8157 9.57415 23.2443 10.0028L24.867 11.6254C25.7596 12.5181 25.7596 13.9653 24.867 14.8579L23.2443 16.4805C22.8157 16.9092 22.5749 17.4906 22.5749 18.0968V20.2893C22.5749 21.5517 21.5515 22.575 20.2892 22.575H18.0865C17.4863 22.575 16.9102 22.8111 16.4826 23.2323L14.8627 24.8277Z';
 const CROWN_BOLT_PATH = 'M12.9012 14.7002V19.0752L17.3248 11.7836H14.1651V7.40857L9.74146 14.7002H12.9012Z';
-// Crown drawn at 10×10 units centered above a 24-wide pin, with a 1-unit gap.
-const CROWN_UNIT = 10;
-const CROWN_GAP_UNIT = 1;
+// Small badge, 8×8 units, centered on the top edge of the 24-wide shape —
+// mostly above it with a slight overlap, not adding to the canvas height.
+const CROWN_UNIT = 8;
 const CROWN_SCALE = CROWN_UNIT / 27;
 const CROWN_X_OFFSET = (24 - CROWN_UNIT) / 2;
+const CROWN_Y_OFFSET = -CROWN_UNIT * 0.65;
+
+function CrownBadge({ goldColor, fill }: { goldColor: string; fill: string }) {
+  return (
+    <G transform={`translate(${CROWN_X_OFFSET}, ${CROWN_Y_OFFSET}) scale(${CROWN_SCALE})`}>
+      <Path d={CROWN_RING_PATH} fill={goldColor} />
+      <Path d={CROWN_BOLT_PATH} fill={fill} />
+    </G>
+  );
+}
 
 function PinShape({
   size,
@@ -96,48 +115,23 @@ function PinShape({
   selo: boolean;
   goldColor: string;
 }) {
-  const totalUnits = selo ? CROWN_UNIT + CROWN_GAP_UNIT + 24 : 24;
-  const height = (size * totalUnits) / 24;
-  const pinY = selo ? CROWN_UNIT + CROWN_GAP_UNIT : 0;
-
   return (
-    <Svg width={size} height={height} viewBox={`0 0 24 ${totalUnits}`}>
-      {selo && (
-        <G transform={`translate(${CROWN_X_OFFSET}, 0) scale(${CROWN_SCALE})`}>
-          <Path d={CROWN_RING_PATH} fill={goldColor} />
-          <Path d={CROWN_BOLT_PATH} fill={fill} />
-        </G>
-      )}
-      <G transform={`translate(0, ${pinY})`}>
-        <Path d={PIN_PATH} fill={fill} stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        <SvgCircle cx={12} cy={10} r={3} fill={fill} stroke={color} strokeWidth={2} />
-      </G>
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={PIN_PATH} fill={fill} stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      <SvgCircle cx={12} cy={10} r={3} fill={fill} stroke={color} strokeWidth={2} />
+      {selo && <CrownBadge goldColor={goldColor} fill={fill} />}
     </Svg>
   );
 }
 
-// 'dot' style's crown + circle, merged the same way as PinShape above and
-// for the same reason: two separate <Svg> root elements stacked in one
-// marker is what broke, not the circle/crown content itself. The circle
-// used to be a plain (non-SVG) View, which alone was never reported broken
-// — but rebuilding it as one shared <Svg> with the crown removes any doubt
-// and keeps both marker styles on the same safe pattern.
+// 'dot' style's crown + circle, merged into one <Svg> square the same way as
+// PinShape above, for the same reason — same 24-unit viewBox convention so
+// CrownBadge's coordinates apply unchanged.
 function DotShape({ size, color, fill, selo, goldColor }: { size: number; color: string; fill: string; selo: boolean; goldColor: string }) {
-  const DOT_UNIT = 24; // arbitrary unit circle diameter, matched to CROWN_UNIT's 24-wide reference
-  const totalUnits = selo ? CROWN_UNIT + CROWN_GAP_UNIT + DOT_UNIT : DOT_UNIT;
-  const height = (size * totalUnits) / DOT_UNIT;
-  const dotY = selo ? CROWN_UNIT + CROWN_GAP_UNIT : 0;
-  const r = DOT_UNIT / 2 - 2;
-
   return (
-    <Svg width={size} height={height} viewBox={`0 0 ${DOT_UNIT} ${totalUnits}`}>
-      {selo && (
-        <G transform={`translate(${CROWN_X_OFFSET}, 0) scale(${CROWN_SCALE})`}>
-          <Path d={CROWN_RING_PATH} fill={goldColor} />
-          <Path d={CROWN_BOLT_PATH} fill={fill} />
-        </G>
-      )}
-      <SvgCircle cx={DOT_UNIT / 2} cy={dotY + DOT_UNIT / 2} r={r} fill={fill} stroke={color} strokeWidth={3} />
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <SvgCircle cx={12} cy={12} r={9.5} fill={fill} stroke={color} strokeWidth={3} />
+      {selo && <CrownBadge goldColor={goldColor} fill={fill} />}
     </Svg>
   );
 }

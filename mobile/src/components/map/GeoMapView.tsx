@@ -133,22 +133,15 @@ export function GeoMapView({
           </Marker>
         ))}
 
-        {/* Ring genuinely animates every frame, so its own continuous
-            tracking is unavoidable regardless of the above. Solid dot is
-            static after mount but still needs tracksViewChanges true too —
-            per the note above, false-from-mount is what made it disappear
-            entirely, not what protected it. Ring declared first so the dot
-            paints on top of it (later siblings paint over earlier ones). */}
-        <Marker coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges>
-          <UserDotPulseRing />
-        </Marker>
+        {/* One marker for the dot + ring together — see UserDot below for
+            why this used to be split into two and isn't anymore. */}
         <Marker
           coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }}
           anchor={{ x: 0.5, y: 0.5 }}
           tracksViewChanges
           accessibilityLabel="Sua localização"
         >
-          <UserDotSolid />
+          <UserDot />
         </Marker>
       </MapView>
 
@@ -157,55 +150,37 @@ export function GeoMapView({
   );
 }
 
-// Solid center dot for the user-location marker — its own Marker now (see
-// GeoMapView above), split out from the pulsing ring specifically so its
-// snapshot is a one-time, tracksViewChanges={false} capture that's never at
-// the mercy of the ring's continuous per-frame re-rasterization. Reported
-// vanishing entirely when the two shared one marker.
-function UserDotSolid() {
-  const { colors } = useTheme();
-  return (
-    <View
-      style={{
-        width: RING_BASE, height: RING_BASE, borderRadius: RING_BASE / 2,
-        backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
-      }}
-      collapsable={false}
-    />
-  );
-}
-
-// Ported from styles.css `.userdot .pulse` — an expanding, fading ring,
-// looping, behind the solid dot (now a separate marker, see UserDotSolid
-// above).
+// Ported from styles.css `.userdot .pulse` — an expanding, fading ring
+// behind the solid position dot, looping.
 //
-// Found the real cause of the persistent clipping (screenshot showed a solid
-// purple SQUARE where a ring should be): the ring grows via `transform:
-// scale` up to 4.5× — and just like `rotate` on the diamond pins earlier,
-// `scale` doesn't resize the element's own *measured* layout box. The
-// wrapper here was only 18×18 while the ring visually grows to ~81px at its
-// peak (18 × 4.5); react-native-maps measures/snapshots that 18×18 box and
-// clips everything painted outside it. At peak size, that tiny 18px window
-// only ever sees the very center of an 81px circle — far from its curved
-// edge, which just looks like a solid-colored square, not a ring. Sized the
-// wrapper to the ring's true peak extent instead.
+// Went through several wrong turns before this one — see git history for
+// the full trail (a too-small wrapper clipping the scaled-up ring; the ring
+// defaulting to `position:absolute`'s implicit top-left instead of being
+// centered in that wrapper; splitting the dot and ring into two separate
+// Markers to dodge one bug, which then surfaced a *new* one — reported: the
+// dot and the ring visually not lining up, at the same geographic
+// coordinate). Recombined into one marker: two Markers at an identical
+// coordinate should coincide, and them drifting apart pointed at the split
+// itself being part of the problem, not the fix.
 //
-// That fix alone still needed this: `position: 'absolute'` children are NOT
-// affected by their parent's `alignItems`/`justifyContent` in RN — those
-// only apply to normal-flow children. The ring defaulted to its implicit
-// `top: 0, left: 0`, which happened to look centered back when the wrapper
-// was the *same* 18×18 size as the ring itself (top-left-aligned == fully
-// overlapping at equal sizes) — but enlarging the wrapper to 81×81 left the
-// ring anchored to that box's top-left corner instead of its center,
-// nowhere near the actually-centered solid dot (reported: the dot
-// disappeared and only an oddly-placed pulse remained). Explicit centering
-// offsets below fix that.
+// Also switched the ring's animation off the native driver. A
+// natively-driven transform (useNativeDriver: true) updates a view's
+// rendering via the UI render thread directly, bypassing the normal
+// layout/style pipeline — if react-native-maps' Android bitmap capture
+// reads a view's state through that normal pipeline (a synchronous
+// view.draw(canvas) call), it can plausibly miss or misread a transform
+// that's live only on the render thread, which fits both symptoms reported
+// (the ring appearing cut, and the ring and dot appearing to occupy
+// different positions despite sharing one marker and one coordinate). JS-
+// driven (useNativeDriver: false) updates the same style/layout path
+// everything else in this file (including the always-correctly-rendered
+// solid dot) goes through.
 const RING_BASE = 18;
 const RING_SCALE_MAX = 4.5;
 const RING_BOX = RING_BASE * RING_SCALE_MAX;
 const RING_CENTER_OFFSET = (RING_BOX - RING_BASE) / 2;
 
-function UserDotPulseRing() {
+function UserDot() {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -213,27 +188,33 @@ function UserDotPulseRing() {
   useEffect(() => {
     if (reduced) return;
     const loop = Animated.loop(
-      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: true })
+      Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.out(Easing.ease), useNativeDriver: false })
     );
     loop.start();
     return () => loop.stop();
   }, [reduced, pulse]);
 
-  if (reduced) return null;
-
   return (
-    <View style={{ width: RING_BOX, height: RING_BOX }} collapsable={false}>
-      <Animated.View
+    <View style={{ width: RING_BOX, height: RING_BOX, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
+      {!reduced && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: RING_CENTER_OFFSET,
+            left: RING_CENTER_OFFSET,
+            width: RING_BASE,
+            height: RING_BASE,
+            borderRadius: RING_BASE / 2,
+            backgroundColor: colors.primary,
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, RING_SCALE_MAX] }) }],
+          }}
+        />
+      )}
+      <View
         style={{
-          position: 'absolute',
-          top: RING_CENTER_OFFSET,
-          left: RING_CENTER_OFFSET,
-          width: RING_BASE,
-          height: RING_BASE,
-          borderRadius: RING_BASE / 2,
-          backgroundColor: colors.primary,
-          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, RING_SCALE_MAX] }) }],
+          width: RING_BASE, height: RING_BASE, borderRadius: RING_BASE / 2,
+          backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
         }}
       />
     </View>
