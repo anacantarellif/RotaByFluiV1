@@ -140,17 +140,26 @@ export function GeoMapView({
 // Ported from styles.css `.userdot .pulse` — an expanding, fading ring behind
 // the solid position dot, looping.
 //
-// Briefly swapped for the designer-provided pulseDot Lottie, which had to be
-// reverted: embedding a LottieView inside a react-native-maps Marker doesn't
-// snapshot reliably on Android — Lottie draws through its own native path,
-// which doesn't consistently participate in the bitmap capture
-// react-native-maps uses for marker content. Reported and confirmed by
-// screenshot: the pulse rendered as a flat-topped half-disk instead of a full
-// ring, while the plain-View station pins right next to it in the same
-// screenshot were completely intact — the clipping was specific to the one
-// marker with a native view embedded in it, not a general marker-sizing
-// issue. Plain Animated.View (no embedded native view) is what station pins
-// already use safely, so that's what this goes back to.
+// Found the real cause of the persistent clipping (screenshot showed a solid
+// purple SQUARE where a ring should be): the ring grows via `transform:
+// scale` up to 4.5× — and just like `rotate` on the diamond pins earlier,
+// `scale` doesn't resize the element's own *measured* layout box. The
+// wrapper here was only 18×18 while the ring visually grows to ~81px at its
+// peak (18 × 4.5); react-native-maps measures/snapshots that 18×18 box and
+// clips everything painted outside it. At peak size, that tiny 18px window
+// only ever sees the very center of an 81px circle — far from its curved
+// edge, which just looks like a solid-colored square, not a ring. (Briefly
+// tried a Lottie ring, then a native Circle overlay for this instead of
+// fixing the box — both regressed further; see git history. This is the
+// same diamondBox() fix already applied to the station pins, just for scale
+// instead of rotate.) Sized the wrapper to the ring's true peak extent
+// instead. Anchor here is center ({x:0.5,y:0.5}), not bottom like the pins,
+// so enlarging it symmetrically doesn't shift the marker's map position the
+// way padding the bottom-anchored pins would have.
+const RING_BASE = 18;
+const RING_SCALE_MAX = 4.5;
+const RING_BOX = RING_BASE * RING_SCALE_MAX;
+
 function UserDot() {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
@@ -166,23 +175,23 @@ function UserDot() {
   }, [reduced, pulse]);
 
   return (
-    <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
+    <View style={{ width: RING_BOX, height: RING_BOX, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
       {!reduced && (
         <Animated.View
           style={{
             position: 'absolute',
-            width: 18,
-            height: 18,
-            borderRadius: 9,
+            width: RING_BASE,
+            height: RING_BASE,
+            borderRadius: RING_BASE / 2,
             backgroundColor: colors.primary,
             opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 4.5] }) }],
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, RING_SCALE_MAX] }) }],
           }}
         />
       )}
       <View
         style={{
-          width: 18, height: 18, borderRadius: 9,
+          width: RING_BASE, height: RING_BASE, borderRadius: RING_BASE / 2,
           backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
         }}
       />
