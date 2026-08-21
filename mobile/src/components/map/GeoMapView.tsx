@@ -93,42 +93,59 @@ export function GeoMapView({
             </Marker>
           ))}
 
-        {list.map((st) => (
-          <Marker
-            key={st.id}
-            coordinate={{ latitude: st.lat, longitude: st.lng }}
-            anchor={{ x: 0.5, y: 1 }}
-            zIndex={active === st.id ? 10 : 1}
-            onPress={() => onPin(st)}
-            accessibilityLabel={pinLabel(st)}
-            // Station pins were still reported clipped after sizing their
-            // wrapper box to the rotated shape's true diagonal — the JS layout
-            // fix was correct, but with tracksViewChanges left at its default,
-            // react-native-maps rasterizes the marker into a native bitmap
-            // *once*, which on Android can happen before that layout has
-            // actually settled, baking in a clipped snapshot that then never
-            // gets recaptured. True here keeps it re-rasterizing from the
-            // current (correct) layout — a handful of station pins is cheap
-            // enough that the usual perf reason to avoid this doesn't apply.
-            tracksViewChanges
-          >
-            <StationPin st={st} active={active === st.id} markerStyle={markers} />
-          </Marker>
-        ))}
+        {list.map((st) => {
+          const isActive = active === st.id;
+          return (
+            <Marker
+              // Forces a full remount (and with it, exactly one fresh
+              // snapshot) whenever something that actually changes this
+              // pin's appearance changes, instead of leaving
+              // tracksViewChanges permanently true to keep re-rasterizing in
+              // place. Permanently-true was the real bug, not a workaround
+              // for one: screenshot evidence showed the *same* pin shape
+              // rendering correctly in one color (red/off) and clipped to
+              // just its top arc in others (green/ok, amber/busy) in the
+              // very same render pass — non-deterministic corruption from
+              // continuously re-rasterizing on Android, not anything
+              // color-specific. ReportPin below has used
+              // tracksViewChanges={false} permanently this whole time and
+              // has never once been reported broken — this matches that
+              // proven-safe pattern instead of fighting the continuous one
+              // further.
+              key={`${st.id}-${isActive}-${markers}-${mode}`}
+              coordinate={{ latitude: st.lat, longitude: st.lng }}
+              anchor={{ x: 0.5, y: 1 }}
+              zIndex={isActive ? 10 : 1}
+              onPress={() => onPin(st)}
+              accessibilityLabel={pinLabel(st)}
+              tracksViewChanges={false}
+            >
+              <StationPin st={st} active={isActive} markerStyle={markers} />
+            </Marker>
+          );
+        })}
 
+        {/* Split into two markers instead of one: the solid dot never
+            changes after mount, so it gets the same proven
+            tracksViewChanges={false} treatment as ReportPin/StationMarker
+            (reported vanishing entirely when it shared a marker with the
+            continuously-animating ring — splitting it out means its own
+            snapshot is never at the mercy of the ring's per-frame
+            re-rasterization). The ring genuinely animates every frame, so it
+            still needs tracksViewChanges true — it's the one marker in this
+            app where that's unavoidable, not a default choice. Ring declared
+            first so the solid dot paints on top of it (later siblings paint
+            over earlier ones), not the other way around. */}
+        <Marker coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges>
+          <UserDotPulseRing />
+        </Marker>
         <Marker
           coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }}
           anchor={{ x: 0.5, y: 0.5 }}
-          // Unlike the other markers, this one animates (the pulsing "ondinha"
-          // ring below) — react-native-maps only rasterizes a Marker's child
-          // into what's actually shown on the map when tracksViewChanges is
-          // true, so leaving this false (like the static station/report pins)
-          // would freeze the pulse as a single static frame. Just one marker,
-          // so the continuous-recapture cost is negligible.
-          tracksViewChanges
+          tracksViewChanges={false}
           accessibilityLabel="Sua localização"
         >
-          <UserDot />
+          <UserDotSolid />
         </Marker>
       </MapView>
 
@@ -137,8 +154,27 @@ export function GeoMapView({
   );
 }
 
-// Ported from styles.css `.userdot .pulse` — an expanding, fading ring behind
-// the solid position dot, looping.
+// Solid center dot for the user-location marker — its own Marker now (see
+// GeoMapView above), split out from the pulsing ring specifically so its
+// snapshot is a one-time, tracksViewChanges={false} capture that's never at
+// the mercy of the ring's continuous per-frame re-rasterization. Reported
+// vanishing entirely when the two shared one marker.
+function UserDotSolid() {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={{
+        width: RING_BASE, height: RING_BASE, borderRadius: RING_BASE / 2,
+        backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
+      }}
+      collapsable={false}
+    />
+  );
+}
+
+// Ported from styles.css `.userdot .pulse` — an expanding, fading ring,
+// looping, behind the solid dot (now a separate marker, see UserDotSolid
+// above).
 //
 // Found the real cause of the persistent clipping (screenshot showed a solid
 // purple SQUARE where a ring should be): the ring grows via `transform:
@@ -148,19 +184,25 @@ export function GeoMapView({
 // peak (18 × 4.5); react-native-maps measures/snapshots that 18×18 box and
 // clips everything painted outside it. At peak size, that tiny 18px window
 // only ever sees the very center of an 81px circle — far from its curved
-// edge, which just looks like a solid-colored square, not a ring. (Briefly
-// tried a Lottie ring, then a native Circle overlay for this instead of
-// fixing the box — both regressed further; see git history. This is the
-// same diamondBox() fix already applied to the station pins, just for scale
-// instead of rotate.) Sized the wrapper to the ring's true peak extent
-// instead. Anchor here is center ({x:0.5,y:0.5}), not bottom like the pins,
-// so enlarging it symmetrically doesn't shift the marker's map position the
-// way padding the bottom-anchored pins would have.
+// edge, which just looks like a solid-colored square, not a ring. Sized the
+// wrapper to the ring's true peak extent instead.
+//
+// That fix alone still needed this: `position: 'absolute'` children are NOT
+// affected by their parent's `alignItems`/`justifyContent` in RN — those
+// only apply to normal-flow children. The ring defaulted to its implicit
+// `top: 0, left: 0`, which happened to look centered back when the wrapper
+// was the *same* 18×18 size as the ring itself (top-left-aligned == fully
+// overlapping at equal sizes) — but enlarging the wrapper to 81×81 left the
+// ring anchored to that box's top-left corner instead of its center,
+// nowhere near the actually-centered solid dot (reported: the dot
+// disappeared and only an oddly-placed pulse remained). Explicit centering
+// offsets below fix that.
 const RING_BASE = 18;
 const RING_SCALE_MAX = 4.5;
 const RING_BOX = RING_BASE * RING_SCALE_MAX;
+const RING_CENTER_OFFSET = (RING_BOX - RING_BASE) / 2;
 
-function UserDot() {
+function UserDotPulseRing() {
   const { colors } = useTheme();
   const reduced = useReducedMotion();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -174,25 +216,21 @@ function UserDot() {
     return () => loop.stop();
   }, [reduced, pulse]);
 
+  if (reduced) return null;
+
   return (
-    <View style={{ width: RING_BOX, height: RING_BOX, alignItems: 'center', justifyContent: 'center' }} collapsable={false}>
-      {!reduced && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            width: RING_BASE,
-            height: RING_BASE,
-            borderRadius: RING_BASE / 2,
-            backgroundColor: colors.primary,
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, RING_SCALE_MAX] }) }],
-          }}
-        />
-      )}
-      <View
+    <View style={{ width: RING_BOX, height: RING_BOX }} collapsable={false}>
+      <Animated.View
         style={{
-          width: RING_BASE, height: RING_BASE, borderRadius: RING_BASE / 2,
-          backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.surface,
+          position: 'absolute',
+          top: RING_CENTER_OFFSET,
+          left: RING_CENTER_OFFSET,
+          width: RING_BASE,
+          height: RING_BASE,
+          borderRadius: RING_BASE / 2,
+          backgroundColor: colors.primary,
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, RING_SCALE_MAX] }) }],
         }}
       />
     </View>
