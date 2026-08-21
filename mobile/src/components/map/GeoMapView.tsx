@@ -78,6 +78,32 @@ export function GeoMapView({
         onMapLoaded={() => setLoading(false)}
         accessibilityLabel="Mapa interativo dos pontos de recarga"
       >
+        {/* Every custom-view Marker in this file uses tracksViewChanges
+            permanently true — read react-native-maps' own Android source
+            (MapMarker.java) to settle this instead of guessing again.
+            addToMap() bakes a marker's *first* bitmap synchronously via
+            createDrawable(), which falls back to drawing whatever's
+            currently there into a 100×100 canvas if the RN view hasn't
+            finished its async layout pass yet by that exact moment — a real
+            race, not a hypothetical one. With tracksViewChanges true,
+            ViewChangesTracker just re-captures every ~40ms
+            (`fps = 40` in that file) until a properly-settled frame gets
+            through — self-healing. With it false from mount, that first
+            (possibly-empty) capture is never retried: setTracksViewChanges
+            only calls updateMarkerIcon() again on a true→false *transition*
+            (guarded by `if (shouldTrack == tracksViewChangesActive) return`,
+            and tracksViewChangesActive starts false) — false from the very
+            first call never takes that branch. A previous attempt set
+            station pins and the pulse dot to tracksViewChanges={false} from
+            mount (plus, for the pins, a remount-on-change `key`, which
+            re-triggers this exact race on every remount instead of avoiding
+            it) — reported result: every station pin and the pulse dot
+            vanished outright. That's this race caught in the worst way,
+            confirming the diagnosis. Continuous tracking's own occasional
+            partial-frame catches (reported earlier as clipping) are a
+            transient timing artifact of the ~40ms recapture cycle catching
+            an in-between layout pass, not permanent corruption — the next
+            tick self-corrects it, unlike a frozen empty capture. */}
         {showReports &&
           onReport &&
           DATA.reports.map((r) => (
@@ -85,7 +111,7 @@ export function GeoMapView({
               key={r.id}
               coordinate={{ latitude: r.lat, longitude: r.lng }}
               anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={false}
+              tracksViewChanges
               onPress={() => onReport(r)}
               accessibilityLabel={`Reporte da comunidade: ${r.label}, há ${r.when}. Toque para ver detalhes`}
             >
@@ -93,56 +119,33 @@ export function GeoMapView({
             </Marker>
           ))}
 
-        {list.map((st) => {
-          const isActive = active === st.id;
-          return (
-            <Marker
-              // Forces a full remount (and with it, exactly one fresh
-              // snapshot) whenever something that actually changes this
-              // pin's appearance changes, instead of leaving
-              // tracksViewChanges permanently true to keep re-rasterizing in
-              // place. Permanently-true was the real bug, not a workaround
-              // for one: screenshot evidence showed the *same* pin shape
-              // rendering correctly in one color (red/off) and clipped to
-              // just its top arc in others (green/ok, amber/busy) in the
-              // very same render pass — non-deterministic corruption from
-              // continuously re-rasterizing on Android, not anything
-              // color-specific. ReportPin below has used
-              // tracksViewChanges={false} permanently this whole time and
-              // has never once been reported broken — this matches that
-              // proven-safe pattern instead of fighting the continuous one
-              // further.
-              key={`${st.id}-${isActive}-${markers}-${mode}`}
-              coordinate={{ latitude: st.lat, longitude: st.lng }}
-              anchor={{ x: 0.5, y: 1 }}
-              zIndex={isActive ? 10 : 1}
-              onPress={() => onPin(st)}
-              accessibilityLabel={pinLabel(st)}
-              tracksViewChanges={false}
-            >
-              <StationPin st={st} active={isActive} markerStyle={markers} />
-            </Marker>
-          );
-        })}
+        {list.map((st) => (
+          <Marker
+            key={st.id}
+            coordinate={{ latitude: st.lat, longitude: st.lng }}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={active === st.id ? 10 : 1}
+            onPress={() => onPin(st)}
+            accessibilityLabel={pinLabel(st)}
+            tracksViewChanges
+          >
+            <StationPin st={st} active={active === st.id} markerStyle={markers} />
+          </Marker>
+        ))}
 
-        {/* Split into two markers instead of one: the solid dot never
-            changes after mount, so it gets the same proven
-            tracksViewChanges={false} treatment as ReportPin/StationMarker
-            (reported vanishing entirely when it shared a marker with the
-            continuously-animating ring — splitting it out means its own
-            snapshot is never at the mercy of the ring's per-frame
-            re-rasterization). The ring genuinely animates every frame, so it
-            still needs tracksViewChanges true — it's the one marker in this
-            app where that's unavoidable, not a default choice. Ring declared
-            first so the solid dot paints on top of it (later siblings paint
-            over earlier ones), not the other way around. */}
+        {/* Ring genuinely animates every frame, so its own continuous
+            tracking is unavoidable regardless of the above. Solid dot is
+            static after mount but still needs tracksViewChanges true too —
+            per the note above, false-from-mount is what made it disappear
+            entirely, not what protected it. Ring declared first so the dot
+            paints on top of it (later siblings paint over earlier ones). */}
         <Marker coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges>
           <UserDotPulseRing />
         </Marker>
         <Marker
           coordinate={{ latitude: userGeo.lat, longitude: userGeo.lng }}
           anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={false}
+          tracksViewChanges
           accessibilityLabel="Sua localização"
         >
           <UserDotSolid />
