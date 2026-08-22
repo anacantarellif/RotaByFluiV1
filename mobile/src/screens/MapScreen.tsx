@@ -16,7 +16,8 @@
 // is gone (MapsHandoffSheet navigates via useNavigation() itself), and `density`/
 // `showReports` read from useTheme() instead of being passed in.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
@@ -520,9 +521,8 @@ function ListRow({ st, onOpen }: { st: Station; onOpen: (st: Station) => void })
         accessible
         accessibilityRole="image"
         accessibilityLabel={`Foto do ponto ${st.name}`}
-        accessibilityIgnoresInvertColors
         style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: colors.surface2 }}
-        resizeMode="cover"
+        contentFit="cover"
       />
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

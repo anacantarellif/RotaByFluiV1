@@ -10,7 +10,8 @@
 // is dropped as a result (no equivalent prop on the shared component); a minor,
 // intentional visual loss, not a functional one.
 import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Icon, IconName, Seal, SeloRow } from '../icons/Icon';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { useTheme } from '../../theme/ThemeContext';
@@ -48,9 +49,8 @@ function CoverPhoto({
         accessible
         accessibilityRole="image"
         accessibilityLabel={a11yLabel}
-        accessibilityIgnoresInvertColors
         style={StyleSheet.absoluteFill}
-        resizeMode="cover"
+        contentFit="cover"
       />
       {children}
     </View>

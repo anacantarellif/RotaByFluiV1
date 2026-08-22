@@ -5,9 +5,14 @@
 // seeded placeholders) now that every station and guide has a real photo:
 // no network fetch, no loading/error states to juggle, and nothing left to
 // fall back to a placeholder for.
-import { ImageSourcePropType } from 'react-native';
+//
+// Typed `number` (Metro's local-asset module id, what `require()` of an
+// image always resolves to) rather than RN's `ImageSourcePropType` — every
+// photo in this app now renders through expo-image (see the Photo component
+// in Station.tsx for why), and `number` is what its `source` prop actually
+// expects for a bundled asset.
 
-const STATION_PHOTOS: Record<string, ImageSourcePropType> = {
+const STATION_PHOTOS: Record<string, number> = {
   st1: require('../../assets/photos/stations/st1.jpg'),
   st2: require('../../assets/photos/stations/st2.jpg'),
   st3: require('../../assets/photos/stations/st3.jpg'),
@@ -17,17 +22,17 @@ const STATION_PHOTOS: Record<string, ImageSourcePropType> = {
   st7: require('../../assets/photos/stations/st7.jpg'),
 };
 
-const GUIDE_PHOTOS: Record<string, ImageSourcePropType> = {
+const GUIDE_PHOTOS: Record<string, number> = {
   g1: require('../../assets/photos/guides/g1.jpg'),
   g2: require('../../assets/photos/guides/g2.jpg'),
   g3: require('../../assets/photos/guides/g3.jpg'),
   g4: require('../../assets/photos/guides/g4.jpg'),
 };
 
-export function stationPhoto(stationId: string): ImageSourcePropType {
+export function stationPhoto(stationId: string): number {
   return STATION_PHOTOS[stationId];
 }
 
-export function guidePhoto(guideId: string): ImageSourcePropType {
+export function guidePhoto(guideId: string): number {
   return GUIDE_PHOTOS[guideId];
 }

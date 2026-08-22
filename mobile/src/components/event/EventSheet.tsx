@@ -123,11 +123,13 @@ export function EventSheet({
 }
 
 const styles = StyleSheet.create({
-  // ModalSheet's own scrollable Body already reserves a 24px bottom pad plus
-  // the device's safe-area inset, but the "Não está mais assim" button (the
-  // last thing in this sheet) was still reported clipped — another 24px here
-  // on top of that.
-  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 24 },
+  // The 24 added here on top of ModalSheet's own device-inset reserve was a
+  // band-aid from when this sheet used a fixed snapPoint too short to show
+  // both buttons at all — now that ModalSheet sizes it to content
+  // (`dynamicSizing`), that generous margin left a noticeably oversized gap
+  // below "Não está mais assim" instead. A small one is still worth keeping
+  // so the button doesn't sit flush against the reserved safe area.
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 8 },
   kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   kindRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
   dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },

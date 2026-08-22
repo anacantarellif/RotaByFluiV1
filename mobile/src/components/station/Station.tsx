@@ -6,7 +6,8 @@
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, DimensionValue, Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
+import { Animated, DimensionValue, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
@@ -109,7 +110,7 @@ function Photo({
   width?: DimensionValue;
   radius: number;
   a11yLabel: string;
-  source: ImageSourcePropType;
+  source: number;
   children?: React.ReactNode;
 }) {
   const { colors } = useTheme();
@@ -129,9 +130,8 @@ function Photo({
         accessible
         accessibilityRole="image"
         accessibilityLabel={a11yLabel}
-        accessibilityIgnoresInvertColors
         style={StyleSheet.absoluteFill}
-        resizeMode="cover"
+        contentFit="cover"
       />
       {children}
     </View>
@@ -697,9 +697,11 @@ function StationDetailContent({
                       {r.photoUri && (
                         <Image
                           source={{ uri: r.photoUri }}
+                          accessible
                           accessibilityRole="image"
                           accessibilityLabel={`Foto adicionada por ${r.who}`}
                           style={{ width: '100%', height: 160, borderRadius: 12, marginTop: 10, backgroundColor: colors.surface3 }}
+                          contentFit="cover"
                         />
                       )}
                       {/* Source renders this as a `<button className="chip">` with no

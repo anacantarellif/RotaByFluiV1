@@ -16,7 +16,8 @@
 // through `useTheme()`'s actual setters, so the equivalent functionality still
 // ships in-app instead of only existing in the prototyping tool.
 import React, { useState } from 'react';
-import { Image, ScrollView, Switch, Text, View } from 'react-native';
+import { ScrollView, Switch, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarkerStyle, useTheme } from '../theme/ThemeContext';
 import { useFavorites } from '../state/FavoritesContext';
@@ -280,9 +281,8 @@ export function ProfileScreen() {
                 accessible
                 accessibilityRole="image"
                 accessibilityLabel={`Foto do ponto ${s.name}`}
-                accessibilityIgnoresInvertColors
                 style={{ width: 50, height: 50, borderRadius: 12, backgroundColor: colors.surface2 }}
-                resizeMode="cover"
+                contentFit="cover"
               />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: '700', fontSize: 15, color: colors.ink }}>{s.name}</Text>

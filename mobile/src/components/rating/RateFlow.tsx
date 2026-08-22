@@ -3,7 +3,8 @@
 // see docs/HANDOFF.md §6 — triggered on arrival at a station, at the end of a
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Image, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Animated, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Icon, Seal } from '../icons/Icon';
@@ -489,9 +490,11 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                     <View key={uri} style={{ width: 74, height: 74 }}>
                       <Image
                         source={{ uri }}
+                        accessible
                         accessibilityRole="image"
                         accessibilityLabel={`Foto ${i + 1} adicionada`}
                         style={{ width: 74, height: 74, borderRadius: 12, backgroundColor: colors.surface3 }}
+                        contentFit="cover"
                       />
                       <AnimatedPressable
                         onPress={() => removePhoto(uri)}

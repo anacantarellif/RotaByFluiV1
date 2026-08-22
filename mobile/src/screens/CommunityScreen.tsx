@@ -3,7 +3,8 @@
 // PORTING_GUIDE.md's "one file per source domain" — they live here instead of a
 // separate shared file.
 import React, { useState } from 'react';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '../components/icons/Icon';
 import { AnimatedPressable } from '../components/motion/AnimatedPressable';
@@ -114,9 +115,8 @@ function FeedItem({ f }: { f: FeedItemT }) {
             accessible
             accessibilityRole="image"
             accessibilityLabel={`Foto da comunidade em ${station.name}`}
-            accessibilityIgnoresInvertColors
             style={{ width: '100%', height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2 }}
-            resizeMode="cover"
+            contentFit="cover"
           />
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 }}>
