@@ -13,6 +13,7 @@
 // selected car to work from.
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useCar } from '../state/CarContext';
@@ -115,6 +116,7 @@ function PulseDot() {
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const { colors, font, space } = useTheme();
+  const insets = useSafeAreaInsets();
   const { car: currentCar, setCarId } = useCar();
   const [step, setStep] = useState(0);
   const [car, setCar] = useState<string | null>(currentCar.id);
@@ -134,7 +136,10 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 8 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: Math.max(insets.top, 24) }}
+        showsVerticalScrollIndicator={false}
+      >
         {step > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 }}>
             <AnimatedPressable

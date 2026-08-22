@@ -17,6 +17,7 @@
 // `showReports` read from useTheme() instead of being passed in.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName, Seal } from '../components/icons/Icon';
 import { GeoMapView } from '../components/map/GeoMapView';
 import { AMEN, AVAIL, Stars, StationSheet } from '../components/station/Station';
@@ -597,6 +598,8 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 
 export function MapScreen() {
   const { colors, font, showReports } = useTheme();
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, 24);
   const { pushToast } = useToast();
   const { favs, toggleFav } = useFavorites();
   const { addWatts } = useWatts();
@@ -696,7 +699,7 @@ export function MapScreen() {
       ) : (
         <ScrollView
           style={{ flex: 1, backgroundColor: colors.bg }}
-          contentContainerStyle={{ paddingTop: 190, paddingHorizontal: 16, paddingBottom: 96 }}
+          contentContainerStyle={{ paddingTop: 190 + topInset, paddingHorizontal: 16, paddingBottom: 96 }}
         >
           {!listReady ? (
             <ListSkeleton rows={4} />
@@ -715,7 +718,7 @@ export function MapScreen() {
       )}
 
       {/* top overlay: search + filters */}
-      <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 14, paddingTop: 10 }}>
+      <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 14, paddingTop: topInset + 10 }}>
         <View
           style={{
             flexDirection: 'row',

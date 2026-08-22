@@ -180,7 +180,7 @@ export function CommunityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 96 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: Math.max(insets.top, 24) + 14, paddingBottom: 96 }}>
         <View style={{ marginBottom: 14 }}>
           <Text style={{ fontFamily: font.display, fontSize: 30, color: colors.ink }}>Comunidade</Text>
         </View>

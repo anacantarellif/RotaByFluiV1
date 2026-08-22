@@ -17,6 +17,7 @@
 // ships in-app instead of only existing in the prototyping tool.
 import React, { useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarkerStyle, useTheme } from '../theme/ThemeContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useCar } from '../state/CarContext';
@@ -30,6 +31,7 @@ import { Density, ThemeMode } from '../theme/tokens';
 
 export function ProfileScreen() {
   const { colors, font, space } = useTheme();
+  const insets = useSafeAreaInsets();
   const { favs } = useFavorites();
   const { car, setCarId } = useCar();
   const { watts } = useWatts();
@@ -42,7 +44,10 @@ export function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ padding: space.pad, paddingBottom: 96 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: space.pad, paddingTop: Math.max(insets.top, 24) + 14, paddingBottom: 96 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <BrandMark size={22} />

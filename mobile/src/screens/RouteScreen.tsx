@@ -290,7 +290,7 @@ export function RouteScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 96 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: Math.max(insets.top, 24) + 14, paddingBottom: 96 }}>
         <Text style={{ fontFamily: font.display, fontSize: 30, marginBottom: 16, color: colors.ink }}>Planejar rota</Text>
 
         {/* origin/destination card */}
