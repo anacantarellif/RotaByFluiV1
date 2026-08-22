@@ -238,25 +238,31 @@ export type StationSheetProps = {
 };
 
 export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onReport, onRate, fav, onFav }: StationSheetProps) {
+  // Source's `.sheet.peek` has no fixed height (CSS auto-sizes to content).
+  // A guessed percentage snapPoint (previously '32%') left a big empty gap
+  // below the card on some screens; `enableDynamicSizing` (tried next)
+  // measured the card but added its own oversized gap on top of that — so
+  // this measures the peek card itself via onLayout and passes the exact
+  // result as a single-entry snapPoints, the same "one real number, no
+  // guessing" fix, without going through dynamicSizing's inflated result.
+  // Falls back to a reasonable estimate for the first frame, before
+  // onLayout fires. The ficha (mode==='detail') stays on a fixed '94%': a
+  // flex column (scrollable body + sticky action bar) built to fill a given
+  // height, not to be measured and hugged.
+  const [peekHeight, setPeekHeight] = useState(220);
+
   return (
     <ModalSheet
       open
       onClose={onClose}
-      // Source's `.sheet.peek` has no fixed height (CSS auto-sizes to
-      // content). A guessed percentage snapPoint (previously '32%') left a
-      // big empty gap below the card on some screens and cut it short on
-      // others — dynamicSizing measures the actual card instead, so it's
-      // always exactly as tall as its content plus the safe-area inset. The
-      // ficha (mode==='detail') stays on a fixed '94%': it's a flex column
-      // (scrollable body + sticky action bar) built to fill a given height,
-      // not to be measured and hugged.
-      snapPoints={mode === 'peek' ? undefined : ['94%']}
-      dynamicSizing={mode === 'peek'}
+      snapPoints={mode === 'peek' ? [peekHeight] : ['94%']}
       scroll={false}
       label={mode === 'peek' ? `Prévia: ${st.name}` : `Ficha do ponto ${st.name}`}
     >
       {mode === 'peek' ? (
-        <StationPeekContent st={st} onOpen={onOpenDetail} onNavigate={onNavigate} />
+        <View onLayout={(e) => setPeekHeight(e.nativeEvent.layout.height)}>
+          <StationPeekContent st={st} onOpen={onOpenDetail} onNavigate={onNavigate} />
+        </View>
       ) : (
         <StationDetailContent st={st} onClose={onClose} onNavigate={onNavigate} onReport={onReport} onRate={onRate} fav={fav} onFav={onFav} />
       )}
@@ -305,7 +311,7 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
         )}
       </AnimatedPressable>
 
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: space.pad, paddingTop: 14, paddingBottom: 24 }}>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: space.pad, paddingTop: 14, paddingBottom: 36 }}>
         <AnimatedPressable
           onPress={() => onNavigate(st)}
           accessibilityRole="button"

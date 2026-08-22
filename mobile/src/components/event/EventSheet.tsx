@@ -30,6 +30,15 @@ export function EventSheet({
   // unmounts (i.e. when the parent stops rendering it / `open` goes false), not merely
   // when `report` changes to a different report while still open.
   const [voted, setVoted] = useState<'yes' | 'no' | null>(null);
+  // This sheet just stacks a fixed amount of content (no flex layout to
+  // fill), so — like the station peek card — it sizes itself by measuring
+  // its own content via onLayout and passing the exact result as a
+  // single-entry snapPoints, instead of a guessed percentage (previously
+  // the default `['50%','90%']`, which could leave "Não está mais assim"
+  // past the fold) or `enableDynamicSizing` (measured the content but added
+  // its own oversized gap on top of it). Falls back to a reasonable
+  // estimate for the first frame, before onLayout fires.
+  const [height, setHeight] = useState(420);
 
   if (!report) return null;
 
@@ -45,8 +54,8 @@ export function EventSheet({
   };
 
   return (
-    <ModalSheet open onClose={onClose} dynamicSizing label={`Reporte: ${report.label}`}>
-      <View style={styles.content}>
+    <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Reporte: ${report.label}`}>
+      <View style={styles.content} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
         <View style={styles.kv}>
           <View style={styles.kindRow}>
             <View style={[styles.dot, { backgroundColor: c }]} />
@@ -123,13 +132,10 @@ export function EventSheet({
 }
 
 const styles = StyleSheet.create({
-  // The 24 added here on top of ModalSheet's own device-inset reserve was a
-  // band-aid from when this sheet used a fixed snapPoint too short to show
-  // both buttons at all — now that ModalSheet sizes it to content
-  // (`dynamicSizing`), that generous margin left a noticeably oversized gap
-  // below "Não está mais assim" instead. A small one is still worth keeping
-  // so the button doesn't sit flush against the reserved safe area.
-  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 8 },
+  // 36 matches the ficha's sticky action bar exactly (Station.tsx) — same
+  // "content sized to fit, own bottom padding clears the reserved safe
+  // area" pattern, just without a scrollable body above it.
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 36 },
   kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   kindRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
   dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
