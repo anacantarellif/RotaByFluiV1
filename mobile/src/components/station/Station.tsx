@@ -242,10 +242,16 @@ export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onRe
     <ModalSheet
       open
       onClose={onClose}
-      // Source's `.sheet.peek` has no fixed height (CSS auto-sizes to content);
-      // gorhom's BottomSheet needs an explicit snap point, so 32% approximates
-      // the compact peek card's real content height.
-      snapPoints={mode === 'peek' ? ['32%'] : ['94%']}
+      // Source's `.sheet.peek` has no fixed height (CSS auto-sizes to
+      // content). A guessed percentage snapPoint (previously '32%') left a
+      // big empty gap below the card on some screens and cut it short on
+      // others — dynamicSizing measures the actual card instead, so it's
+      // always exactly as tall as its content plus the safe-area inset. The
+      // ficha (mode==='detail') stays on a fixed '94%': it's a flex column
+      // (scrollable body + sticky action bar) built to fill a given height,
+      // not to be measured and hugged.
+      snapPoints={mode === 'peek' ? undefined : ['94%']}
+      dynamicSizing={mode === 'peek'}
       scroll={false}
       label={mode === 'peek' ? `Prévia: ${st.name}` : `Ficha do ponto ${st.name}`}
     >
@@ -299,7 +305,7 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
         )}
       </AnimatedPressable>
 
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: space.pad, paddingTop: 14 }}>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: space.pad, paddingTop: 14, paddingBottom: 24 }}>
         <AnimatedPressable
           onPress={() => onNavigate(st)}
           accessibilityRole="button"

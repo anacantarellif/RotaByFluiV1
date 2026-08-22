@@ -16,7 +16,7 @@
 // through `useTheme()`'s actual setters, so the equivalent functionality still
 // ships in-app instead of only existing in the prototyping tool.
 import React, { useState } from 'react';
-import { ScrollView, Switch, Text, View } from 'react-native';
+import { Image, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarkerStyle, useTheme } from '../theme/ThemeContext';
 import { useFavorites } from '../state/FavoritesContext';
@@ -28,6 +28,7 @@ import { BrandMark } from '../components/BrandMark';
 import { ModalSheet } from '../components/sheets/ModalSheet';
 import { DATA } from '../data/data';
 import { Density, ThemeMode } from '../theme/tokens';
+import { stationPhoto } from '../utils/stationPhotos';
 
 export function ProfileScreen() {
   const { colors, font, space } = useTheme();
@@ -274,14 +275,15 @@ export function ProfileScreen() {
                 marginBottom: 10,
               }}
             >
-              <View
-                style={{ width: 50, height: 50, borderRadius: 12, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+              <Image
+                source={stationPhoto(s.id)}
                 accessible
                 accessibilityRole="image"
                 accessibilityLabel={`Foto do ponto ${s.name}`}
-              >
-                <Text style={{ fontSize: 9, color: colors.inkFaint, textTransform: 'uppercase' }}>foto</Text>
-              </View>
+                accessibilityIgnoresInvertColors
+                style={{ width: 50, height: 50, borderRadius: 12, backgroundColor: colors.surface2 }}
+                resizeMode="cover"
+              />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: '700', fontSize: 15, color: colors.ink }}>{s.name}</Text>
                 <Text style={{ fontSize: 12, color: colors.inkFaint }}>

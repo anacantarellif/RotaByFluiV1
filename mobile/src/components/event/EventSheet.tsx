@@ -45,7 +45,7 @@ export function EventSheet({
   };
 
   return (
-    <ModalSheet open onClose={onClose} label={`Reporte: ${report.label}`}>
+    <ModalSheet open onClose={onClose} dynamicSizing label={`Reporte: ${report.label}`}>
       <View style={styles.content}>
         <View style={styles.kv}>
           <View style={styles.kindRow}>

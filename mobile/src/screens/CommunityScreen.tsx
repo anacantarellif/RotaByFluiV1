@@ -115,7 +115,7 @@ function FeedItem({ f }: { f: FeedItemT }) {
             accessibilityRole="image"
             accessibilityLabel={`Foto da comunidade em ${station.name}`}
             accessibilityIgnoresInvertColors
-            style={{ height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2 }}
+            style={{ width: '100%', height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2 }}
             resizeMode="cover"
           />
         )}

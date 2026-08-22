@@ -30,6 +30,7 @@ export function ModalSheet({
   open,
   onClose,
   snapPoints,
+  dynamicSizing = false,
   scroll = true,
   label,
   children,
@@ -37,6 +38,14 @@ export function ModalSheet({
   open: boolean;
   onClose: () => void;
   snapPoints?: (string | number)[];
+  // Sizes the sheet to exactly fit its rendered content's natural height
+  // instead of a fixed/guessed snapPoint. Right for content that just stacks
+  // (a report card, the station peek card) — wrong for flex-based layouts
+  // that expect a given height to distribute across a header/scroll-body/
+  // sticky-footer column (RateFlow, the ficha's own internal scroll+footer),
+  // which still need `snapPoints`. See the enableDynamicSizing comment below
+  // for why this used to be hardcoded off everywhere.
+  dynamicSizing?: boolean;
   scroll?: boolean;
   label: string; // accessibilityLabel for the dialog, e.g. "Reportar evento"
   children: React.ReactNode;
@@ -45,7 +54,7 @@ export function ModalSheet({
   const insets = useSafeAreaInsets();
   const ref = useRef<BottomSheetModal>(null);
   const contentRef = useRef<View>(null);
-  const points = useMemo(() => snapPoints ?? ['50%', '90%'], [snapPoints]);
+  const points = useMemo(() => (dynamicSizing ? undefined : snapPoints ?? ['50%', '90%']), [snapPoints, dynamicSizing]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,16 +81,25 @@ export function ModalSheet({
       enablePanDownToClose
       // @gorhom/bottom-sheet defaults this to true, which makes the sheet
       // auto-size to its rendered content's natural height instead of
-      // respecting `snapPoints`/`index` above — every *Sheet in this app
-      // passes explicit snapPoints expecting them to be authoritative (e.g.
+      // respecting `snapPoints`/`index` above. Every *Sheet in this app used
+      // to pass explicit snapPoints expecting them to be authoritative (e.g.
       // RateFlow's single `['92%']` point, meant to open already fully
-      // expanded), so this was silently overridden the whole time: sheets
-      // opened sized to however tall their content happened to measure,
-      // squeezing flex-based layouts like RateFlow's header/scroll-body/
-      // footer column into less height than they were built for (reported:
-      // the rating sheet not opening already expanded, and its footer button
-      // looking undersized as a result).
-      enableDynamicSizing={false}
+      // expanded), so leaving this at its default silently overrode that:
+      // sheets opened sized to however tall their content happened to
+      // measure, squeezing flex-based layouts like RateFlow's header/
+      // scroll-body/footer column into less height than they were built for
+      // (reported: the rating sheet not opening already expanded, and its
+      // footer button looking undersized as a result) — hence defaulting the
+      // `dynamicSizing` prop above to false. But that default-off caused a
+      // *different* problem for sheets that don't have a flex layout to
+      // squeeze: the station peek card and the report-detail card just stack
+      // a fixed amount of content, so a guessed percentage snapPoint either
+      // left a large empty gap below the content (peek's old `32%`) or cut
+      // the last button off entirely when the content turned out taller than
+      // guessed (the report sheet's default `['50%','90%']`, with its
+      // second button past the fold). Both now opt into dynamicSizing
+      // instead of fighting over one snapPoint guess.
+      enableDynamicSizing={dynamicSizing}
       // Default stack behavior ('switch') *minimizes* whatever sheet is already
       // registered when a new one mounts, instead of dismissing it — harmless
       // when only one sheet is ever open, but here a station's peek→ficha→handoff
@@ -104,22 +122,37 @@ export function ModalSheet({
       accessibilityViewIsModal
       accessibilityLabel={label}
     >
-      {/* A sheet's bottom edge always sits flush with the true screen bottom
-          (behind the system nav bar in Expo's edge-to-edge Android mode) —
-          the snap point only controls how tall the sheet is, not where its
-          bottom edge is. Pulling `bottom` in by `insets.bottom` shrinks the
-          content area itself to stop above the bar, so anything laid out with
-          flex — including a sticky footer button pinned to the end of a
-          flex:1 column, e.g. RateFlow's "Continuar" — lands above it instead
-          of needing every sheet to separately pad for the inset itself. */}
-      <Body
-        ref={contentRef as any}
-        style={[StyleSheet.absoluteFill, { bottom: insets.bottom }]}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        accessible={false}
-      >
-        {children}
-      </Body>
+      {dynamicSizing ? (
+        // The absoluteFill+bottom trick below relies on the Body already
+        // having a size to shrink — exactly backwards for dynamicSizing,
+        // which sizes the *sheet* by measuring the Body's own rendered
+        // content height. Reserving the safe-area inset has to be real
+        // padding inside what gets measured instead, or it's invisible to
+        // the measurement and the sheet ends up sized too short. Each
+        // dynamicSizing sheet's own content is responsible for its own
+        // *other* spacing (e.g. EventSheet's and the peek card's own
+        // paddingBottom) — this only adds the device inset on top of that.
+        <Body ref={contentRef as any} accessible={false}>
+          <View style={{ paddingBottom: insets.bottom }}>{children}</View>
+        </Body>
+      ) : (
+        // A sheet's bottom edge always sits flush with the true screen bottom
+        // (behind the system nav bar in Expo's edge-to-edge Android mode) —
+        // the snap point only controls how tall the sheet is, not where its
+        // bottom edge is. Pulling `bottom` in by `insets.bottom` shrinks the
+        // content area itself to stop above the bar, so anything laid out with
+        // flex — including a sticky footer button pinned to the end of a
+        // flex:1 column, e.g. RateFlow's "Continuar" — lands above it instead
+        // of needing every sheet to separately pad for the inset itself.
+        <Body
+          ref={contentRef as any}
+          style={[StyleSheet.absoluteFill, { bottom: insets.bottom }]}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          accessible={false}
+        >
+          {children}
+        </Body>
+      )}
     </BottomSheetModal>
   );
 }
