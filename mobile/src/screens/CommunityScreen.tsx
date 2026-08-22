@@ -3,7 +3,7 @@
 // PORTING_GUIDE.md's "one file per source domain" — they live here instead of a
 // separate shared file.
 import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '../components/icons/Icon';
 import { AnimatedPressable } from '../components/motion/AnimatedPressable';
@@ -12,6 +12,7 @@ import { DATA } from '../data/data';
 import { FeedItem as FeedItemT, Mission } from '../data/types';
 import { useWatts } from '../state/WattsContext';
 import { useMissions } from '../state/MissionsContext';
+import { stationPhoto } from '../utils/stationPhotos';
 
 // ---- MissionCard ----
 
@@ -82,8 +83,9 @@ function FeedStars({ n }: { n: number }) {
 }
 
 function FeedItem({ f }: { f: FeedItemT }) {
-  const { colors, font } = useTheme();
+  const { colors } = useTheme();
   const verb = FEED_VERB[f.type];
+  const station = f.station ? DATA.stations.find((s) => s.name === f.station) : undefined;
   return (
     <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.line }}>
       <View
@@ -106,21 +108,16 @@ function FeedItem({ f }: { f: FeedItemT }) {
         </View>
         <Text style={{ fontSize: 11, marginTop: 2, marginBottom: 8, color: colors.inkFaint }}>há {f.when}</Text>
         <Text style={{ fontSize: 14, lineHeight: 20.3, color: colors.ink }}>{f.body}</Text>
-        {f.photo && (
-          <View
+        {f.photo && station && (
+          <Image
+            source={stationPhoto(station.id)}
+            accessible
             accessibilityRole="image"
-            accessibilityLabel="Foto da comunidade"
-            style={{
-              height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2,
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <View style={{ backgroundColor: colors.surface, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 6 }}>
-              <Text style={{ fontFamily: font.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.inkFaint }}>
-                foto da comunidade
-              </Text>
-            </View>
-          </View>
+            accessibilityLabel={`Foto da comunidade em ${station.name}`}
+            accessibilityIgnoresInvertColors
+            style={{ height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2 }}
+            resizeMode="cover"
+          />
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 }}>
           {/* Source renders these as plain, non-interactive `<span>`s (no onClick at
@@ -188,8 +185,7 @@ export function CommunityScreen() {
         {/* watts banner — source paints a diagonal `primary` → `primary-2` CSS
             gradient; no gradient primitive is available without adding
             expo-linear-gradient (not a current dependency), so this falls back to a
-            flat `colors.primary` fill, same simplification already used for the
-            source's repeating-gradient photo placeholders (see Station.tsx `Photo`). */}
+            flat `colors.primary` fill. */}
         <View style={{ padding: 16, marginBottom: 18, borderRadius: space.radius, backgroundColor: colors.primary }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>

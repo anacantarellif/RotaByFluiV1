@@ -39,7 +39,7 @@ import { useCar } from '../state/CarContext';
 import { ROTA_CONFIG } from '../config';
 import { DATA } from '../data/data';
 import { Report, Station } from '../data/types';
-import { photoUrl } from '../utils/placeholderPhoto';
+import { stationPhoto } from '../utils/stationPhotos';
 
 // ---- filter data + pure matching logic (ported 1:1 from screens-map.jsx) ----
 
@@ -516,7 +516,10 @@ function ListRow({ st, onOpen }: { st: Station; onOpen: (st: Station) => void })
       }}
     >
       <Image
-        source={{ uri: photoUrl(st.id, 128, 128) }}
+        source={stationPhoto(st.id)}
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Foto do ponto ${st.name}`}
         accessibilityIgnoresInvertColors
         style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: colors.surface2 }}
         resizeMode="cover"

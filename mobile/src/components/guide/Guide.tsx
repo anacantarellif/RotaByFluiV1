@@ -10,7 +10,7 @@
 // is dropped as a result (no equivalent prop on the shared component); a minor,
 // intentional visual loss, not a functional one.
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Icon, IconName, Seal, SeloRow } from '../icons/Icon';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { useTheme } from '../../theme/ThemeContext';
@@ -20,38 +20,38 @@ import { DATA } from '../../data/data';
 import { Guide, GuideStop } from '../../data/types';
 import { RateFlow, RateResult } from '../rating/RateFlow';
 import { RouteHandoffSheet } from '../handoff/MapsHandoff';
+import { guidePhoto } from '../../utils/stationPhotos';
 
-// ---- cover-photo placeholder (source's `.ph` block, with the guide's `cover`
-// blurb rendered as the visible caption instead of a fixed "foto" label) ----
+// ---- cover photo — used to be a decorative placeholder box (source's `.ph`
+// block) showing the guide's `cover` blurb as text over a flat fill, since
+// there was no real photography of these routes to bundle. Every guide now
+// has a real cover photo (see src/utils/stationPhotos.ts / assets/photos/guides). ----
 
 function CoverPhoto({
   height,
   radius,
-  cover,
+  guideId,
   a11yLabel,
   children,
 }: {
   height: number;
   radius: number;
-  cover: string;
+  guideId: string;
   a11yLabel: string;
   children?: React.ReactNode;
 }) {
-  const { colors, font } = useTheme();
+  const { colors } = useTheme();
   return (
     <View style={{ height, borderRadius: radius, backgroundColor: colors.surface2, overflow: 'hidden' }}>
-      <View
+      <Image
+        source={guidePhoto(guideId)}
         accessible
         accessibilityRole="image"
         accessibilityLabel={a11yLabel}
-        style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
-      >
-        <View style={{ backgroundColor: colors.surface, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 6 }}>
-          <Text style={{ fontFamily: font.mono, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.inkFaint }}>
-            {cover}
-          </Text>
-        </View>
-      </View>
+        accessibilityIgnoresInvertColors
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
       {children}
     </View>
   );
@@ -99,7 +99,7 @@ export function GuideCard({ g, onOpen }: { g: Guide; onOpen: () => void }) {
       accessibilityLabel={`${g.title}, ${g.region}, Selo Flui nível ${g.selo}, ${g.distance} km, ${durationLabel}`}
       style={{ width: '100%', marginBottom: 14, borderRadius: space.radius, backgroundColor: colors.surface, overflow: 'hidden' }}
     >
-      <CoverPhoto height={150} radius={0} cover={g.cover} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
+      <CoverPhoto height={150} radius={0} guideId={g.id} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
         <View style={{ position: 'absolute', top: 12, left: 12 }}>
           <View style={{ backgroundColor: 'rgba(20,14,24,0.62)', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 7 }}>
             <Text style={{ fontFamily: font.mono, fontSize: 10, fontWeight: '600', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.9 }}>
@@ -257,7 +257,7 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 96 }} showsVerticalScrollIndicator={false}>
-        <CoverPhoto height={210} radius={0} cover={g.cover} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
+        <CoverPhoto height={210} radius={0} guideId={g.id} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
           <AnimatedPressable
             onPress={onBack}
             accessibilityRole="button"
