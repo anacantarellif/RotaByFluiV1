@@ -2,13 +2,14 @@
 // `FeedItem`). These sub-components are used only by this screen, so — per
 // PORTING_GUIDE.md's "one file per source domain" — they live here instead of a
 // separate shared file.
-import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, ScrollView, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '../components/icons/Icon';
 import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { useTheme } from '../theme/ThemeContext';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { DATA } from '../data/data';
 import { FeedItem as FeedItemT, Mission } from '../data/types';
 import { useWatts } from '../state/WattsContext';
@@ -83,6 +84,45 @@ function FeedStars({ n }: { n: number }) {
   );
 }
 
+// "Curtir" on a feed post — was a plain, non-interactive span in the source
+// (see the comment on its call site), functionally inert here too until now.
+// Same pop-on-like pattern as FavoriteHeart (Station.tsx): only bounces on
+// the false→true edge, gated by reduced motion, and the thumb icon fills
+// solid instead of just outlined once liked — same "outline → filled"
+// language the heart already uses for favoriting.
+function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const [liked, setLiked] = useState(false);
+  const pop = useRef(new Animated.Value(1)).current;
+  const count = initialLikes + (liked ? 1 : 0);
+
+  const toggle = () => {
+    const next = !liked;
+    setLiked(next);
+    if (next && !reduced) {
+      pop.setValue(0.6);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 3.5, tension: 260 }).start();
+    }
+  };
+
+  return (
+    <AnimatedPressable
+      onPress={toggle}
+      accessibilityRole="button"
+      accessibilityLabel={`Curtir, ${count} curtidas`}
+      accessibilityState={{ selected: liked }}
+      hitSlop={8}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32 }}
+    >
+      <Animated.View style={{ transform: [{ scale: pop }] }}>
+        <Icon name="thumb" size={16} fill={liked ? colors.primary : 'none'} color={liked ? colors.primary : colors.inkSoft} />
+      </Animated.View>
+      <Text style={{ fontSize: 13, color: liked ? colors.primary : colors.inkSoft }}>{count}</Text>
+    </AnimatedPressable>
+  );
+}
+
 function FeedItem({ f }: { f: FeedItemT }) {
   const { colors } = useTheme();
   const verb = FEED_VERB[f.type];
@@ -120,21 +160,15 @@ function FeedItem({ f }: { f: FeedItemT }) {
           />
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 }}>
-          {/* Source renders these as plain, non-interactive `<span>`s (no onClick at
-              all — dead affordances in the prototype, same pattern as the "helpful"
-              chip in station.jsx). Kept functionally inert here too, but per the
-              porting task's accessibility rule ("curtir"/"comentar" icon buttons need
-              labels) they're proper `accessibilityRole="button"` touch targets with
-              real labels instead of unlabeled icon+number pairs. */}
-          <AnimatedPressable
-            accessibilityRole="button"
-            accessibilityLabel={`Curtir, ${f.likes} curtidas`}
-            hitSlop={8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32 }}
-          >
-            <Icon name="thumb" size={16} color={colors.inkSoft} />
-            <Text style={{ fontSize: 13, color: colors.inkSoft }}>{f.likes}</Text>
-          </AnimatedPressable>
+          {/* "Comentar"/"Compartilhar" below are still what the source rendered:
+              plain, non-interactive `<span>`s (no onClick at all — dead
+              affordances in the prototype, same pattern as the "helpful" chip
+              in station.jsx). Kept functionally inert here too, but per the
+              porting task's accessibility rule ("curtir"/"comentar" icon buttons
+              need labels) they're proper `accessibilityRole="button"` touch
+              targets with real labels instead of unlabeled icon+number pairs.
+              "Curtir" (LikeButton, above) is the one exception — now real. */}
+          <LikeButton initialLikes={f.likes} />
           <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel={`Comentar, ${f.comments} comentários`}
