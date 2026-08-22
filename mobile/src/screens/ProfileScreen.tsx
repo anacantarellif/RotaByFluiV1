@@ -27,22 +27,37 @@ import { Icon } from '../components/icons/Icon';
 import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { BrandMark } from '../components/BrandMark';
 import { ModalSheet } from '../components/sheets/ModalSheet';
+import { StationSheet } from '../components/station/Station';
+import { MapsHandoffSheet } from '../components/handoff/MapsHandoff';
 import { DATA } from '../data/data';
+import { Station } from '../data/types';
 import { Density, ThemeMode } from '../theme/tokens';
 import { stationPhoto } from '../utils/stationPhotos';
 
 export function ProfileScreen() {
   const { colors, font, space } = useTheme();
   const insets = useSafeAreaInsets();
-  const { favs } = useFavorites();
+  const { favs, toggleFav } = useFavorites();
   const { car, setCarId } = useCar();
   const { watts } = useWatts();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [carPickerOpen, setCarPickerOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [handoff, setHandoff] = useState<Station | null>(null);
 
   const u = DATA.user;
   const favStations = DATA.stations.filter((s) => favs.has(s.id));
   const earnedCount = DATA.badges.filter((b) => b.earned).length;
+  const activeSt = DATA.stations.find((s) => s.id === activeId) ?? null;
+
+  // Same "let the outgoing sheet actually finish closing first" pattern as
+  // MapScreen's closeStationThen: mounting the handoff sheet in the same
+  // commit that unmounts the ficha is the exact race that made a sheet
+  // transition unreliable there (see Station.tsx's StationSheet comment).
+  const openHandoff = (s: Station) => {
+    setActiveId(null);
+    setTimeout(() => setHandoff(s), 280);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -264,8 +279,12 @@ export function ProfileScreen() {
           </View>
         ) : (
           favStations.map((s) => (
-            <View
+            <AnimatedPressable
               key={s.id}
+              onPress={() => setActiveId(s.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir ficha completa de ${s.name}`}
+              scaleTo={0.98}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -291,7 +310,7 @@ export function ProfileScreen() {
                 </Text>
               </View>
               <Icon name="heart" size={20} fill={colors.off} color={colors.off} />
-            </View>
+            </AnimatedPressable>
           ))
         )}
       </ScrollView>
@@ -306,6 +325,18 @@ export function ProfileScreen() {
           setCarPickerOpen(false);
         }}
       />
+      {activeSt && (
+        <StationSheet
+          st={activeSt}
+          mode="detail"
+          onOpenDetail={() => {}}
+          onClose={() => setActiveId(null)}
+          onNavigate={openHandoff}
+          fav={favs.has(activeSt.id)}
+          onFav={(s) => toggleFav(s.id)}
+        />
+      )}
+      {handoff && <MapsHandoffSheet dest={handoff} onClose={() => setHandoff(null)} />}
     </View>
   );
 }
