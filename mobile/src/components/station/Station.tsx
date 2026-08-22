@@ -6,7 +6,7 @@
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
+import { Animated, DimensionValue, Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
@@ -92,12 +92,21 @@ export function Stars({ n, size = 14, label = true }: StarsProps) {
 // way a network image could.
 function Photo({
   height,
+  width = '100%',
   radius,
   a11yLabel,
   source,
   children,
 }: {
   height: number;
+  // Defaults to '100%', which only actually fills the box in a column
+  // parent (RN's cross-axis stretch default) — the peek thumbnail's row
+  // parent doesn't stretch its main axis, so it passes a real number here.
+  // Skipping this for a row usage previously left the box with no width at
+  // all (only `height`, no intrinsic content size since Image is position:
+  // absolute), which resizeMode="cover" then filled by scaling the photo up
+  // to an enormous, near-random-looking crop to cover that near-zero width.
+  width?: DimensionValue;
   radius: number;
   a11yLabel: string;
   source: ImageSourcePropType;
@@ -109,6 +118,7 @@ function Photo({
     <View
       style={{
         height,
+        width,
         borderRadius: radius,
         backgroundColor: colors.surface2,
         overflow: 'hidden',
@@ -265,7 +275,7 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
         style={{ paddingHorizontal: space.pad, paddingTop: 6 }}
       >
         <View style={{ flexDirection: 'row', gap: 14 }}>
-          <Photo height={84} radius={16} a11yLabel={`Foto do ponto ${st.name}`} source={stationPhoto(st.id)} />
+          <Photo height={84} width={84} radius={16} a11yLabel={`Foto do ponto ${st.name}`} source={stationPhoto(st.id)} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <Dot color={avColor} />
@@ -716,13 +726,19 @@ function StationDetailContent({
           )}
         </BottomSheetScrollView>
 
-        {/* sticky actions */}
+        {/* sticky actions — this bar sits outside the ScrollView above (the
+            sheet opens with scroll={false} so it can own its own internal
+            scroll region + a footer that never scrolls away), so it doesn't
+            get ModalSheet's shared scrollable-content bottom padding at all
+            — only the safe-area inset shrink. Reported clipped; 24px more
+            than the plain paddingVertical below. */}
         <View
           style={{
             flexDirection: 'row',
             gap: 10,
             paddingHorizontal: space.pad,
-            paddingVertical: 12,
+            paddingTop: 12,
+            paddingBottom: 36,
             borderTopWidth: 1,
             borderTopColor: colors.line,
             backgroundColor: colors.surface,
