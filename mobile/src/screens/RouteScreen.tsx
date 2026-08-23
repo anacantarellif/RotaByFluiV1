@@ -21,6 +21,7 @@ import { GuideBrowser, GuideDetail } from '../components/guide/Guide';
 import { RouteHandoffSheet } from '../components/handoff/MapsHandoff';
 import { ModalSheet } from '../components/sheets/ModalSheet';
 import { useTheme } from '../theme/ThemeContext';
+import { useScreenReaderEnabled } from '../hooks/useScreenReaderEnabled';
 import { focus } from '../theme/tokens';
 import { useToast } from '../state/ToastContext';
 import { useCar } from '../state/CarContext';
@@ -92,6 +93,15 @@ function BatterySlider({
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
   const pct = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  // A screen reader takes over raw touch handling for its own touch-
+  // exploration and swipe-to-adjust gestures on an accessibilityRole=
+  // "adjustable" element; a Gesture.Pan registered on that same view was
+  // reported to make the slider *undraggable* instead of just redundant —
+  // the two are competing for the same touch stream. Below, the pan
+  // handler is only attached when no screen reader is active; the
+  // increment/decrement accessibility actions already handle the
+  // screen-reader case on their own and don't need it.
+  const screenReaderEnabled = useScreenReaderEnabled();
 
   const setFromX = useCallback(
     (x: number) => {
@@ -107,12 +117,12 @@ function BatterySlider({
       Gesture.Pan()
         .onBegin((e) => setFromX(e.x))
         .onUpdate((e) => setFromX(e.x))
-        .runOnJS(true),
-    [setFromX]
+        .runOnJS(true)
+        .enabled(!screenReaderEnabled),
+    [setFromX, screenReaderEnabled]
   );
 
-  return (
-    <GestureDetector gesture={pan}>
+  const track = (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       hitSlop={{ top: 14, bottom: 14 }}
@@ -148,8 +158,10 @@ function BatterySlider({
         }}
       />
     </View>
-    </GestureDetector>
   );
+
+  if (screenReaderEnabled) return track;
+  return <GestureDetector gesture={pan}>{track}</GestureDetector>;
 }
 
 // Real coordinates for a destination's start/end, when available, so a planned
@@ -356,6 +368,14 @@ export function RouteScreen() {
               being calculated for and flags a charger mismatch (or that no stop is
               needed at all) before the driver taps "Calcular rota". */}
           <View
+            accessible
+            accessibilityLabel={
+              !plan.needsStop
+                ? `Seu ${car.brand} ${car.model} faz os ${destination.distanceKm} km direto, sem precisar recarregar no caminho.`
+                : plan.compatible
+                  ? `Calculado para o seu ${car.brand} ${car.model} · ${car.connector} · ${effectiveKwLabel(plan.effectiveKw, plan.stationPower)}`
+                  : `O ponto de recarga do caminho não tem ${car.connector} (seu ${car.brand} ${car.model}) — a estimativa de bateria na chegada não considera recarga no caminho.`
+            }
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
               padding: 10, borderRadius: 12,
@@ -639,9 +659,22 @@ function DestinationPickerSheet({
   return (
     <ModalSheet open={open} onClose={onClose} snapPoints={['75%']} label="Escolher destino">
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4, gap: 14 }}>
-        <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
-          Para onde vamos?
-        </Text>
+        {/* No dismiss control of its own before — same note as the other
+            sheets fixed alongside this one (see Station.tsx StationPeekContent). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
+            Para onde vamos?
+          </Text>
+          <AnimatedPressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar"
+            hitSlop={6}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="x" size={16} color={colors.ink} />
+          </AnimatedPressable>
+        </View>
 
         <View
           style={{

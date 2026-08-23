@@ -361,9 +361,23 @@ function CarPickerSheet({
   return (
     <ModalSheet open={open} onClose={onClose} snapPoints={['70%']} label="Trocar carro">
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4, gap: 14 }}>
-        <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
-          Qual é o seu carro?
-        </Text>
+        {/* No dismiss control of its own before — only ModalSheet's backdrop
+            tap / swipe-down, unreachable via a screen reader's linear swipe
+            navigation. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
+            Qual é o seu carro?
+          </Text>
+          <AnimatedPressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar"
+            hitSlop={6}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="x" size={16} color={colors.ink} />
+          </AnimatedPressable>
+        </View>
         <View style={{ gap: 10 }}>
           {DATA.cars.map((c) => {
             const selected = c.id === selectedId;
@@ -507,9 +521,22 @@ function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }
   return (
     <ModalSheet open={open} onClose={onClose} snapPoints={['64%']} label="Configurações">
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4, gap: 22 }}>
-        <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
-          Configurações
-        </Text>
+        {/* No dismiss control of its own before — same note as CarPickerSheet
+            above. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text accessibilityRole="header" style={{ fontFamily: font.display, fontSize: 22, fontWeight: '600', color: colors.ink }}>
+            Configurações
+          </Text>
+          <AnimatedPressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar"
+            hitSlop={6}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="x" size={16} color={colors.ink} />
+          </AnimatedPressable>
+        </View>
 
         <View style={{ gap: 16 }}>
           <SectionLabel>Aparência</SectionLabel>

@@ -245,15 +245,30 @@ function FilterSheet({
               Refinar busca
             </Text>
           </View>
-          <AnimatedPressable
-            onPress={() => setLocal(EMPTY_ADV)}
-            accessibilityRole="button"
-            accessibilityLabel="Limpar filtros"
-            hitSlop={6}
-            style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 100, backgroundColor: colors.surface2 }}
-          >
-            <Text style={{ fontFamily: font.uiSemibold, fontSize: 13, color: colors.ink }}>Limpar</Text>
-          </AnimatedPressable>
+          {/* This sheet had no dismiss control of its own — only ModalSheet's
+              backdrop tap / swipe-down, both unreachable via a screen
+              reader's linear swipe navigation. Reported as the screen
+              reader getting stuck inside it. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <AnimatedPressable
+              onPress={() => setLocal(EMPTY_ADV)}
+              accessibilityRole="button"
+              accessibilityLabel="Limpar filtros"
+              hitSlop={6}
+              style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 100, backgroundColor: colors.surface2 }}
+            >
+              <Text style={{ fontFamily: font.uiSemibold, fontSize: 13, color: colors.ink }}>Limpar</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar filtros"
+              hitSlop={6}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="x" size={16} color={colors.ink} />
+            </AnimatedPressable>
+          </View>
         </View>
 
         <FilterSection title="Avaliação">
@@ -422,6 +437,19 @@ function ReportSheet({
   return (
     <ModalSheet open onClose={onClose} label={`Reportar situação em ${st.name}`}>
       <View style={{ paddingHorizontal: space.pad, paddingTop: 4 }}>
+        {/* No dismiss control of its own before — see the same note on
+            FilterSheet above. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -4 }}>
+          <AnimatedPressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar reporte"
+            hitSlop={6}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="x" size={16} color={colors.ink} />
+          </AnimatedPressable>
+        </View>
         <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', color: colors.inkFaint, marginBottom: 4 }}>
           Reporte da comunidade
         </Text>

@@ -56,6 +56,23 @@ export function EventSheet({
   return (
     <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Reporte: ${report.label}`}>
       <View style={styles.content} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+        {/* This sheet had no dismiss control in its own content — only
+            ModalSheet's backdrop tap / swipe-down, both unreachable via a
+            screen reader's linear swipe navigation (accessibilityViewIsModal
+            keeps the backdrop outside the modal's own traversal order, and
+            swipe-down collides with TalkBack's own gesture vocabulary).
+            Reported as the screen reader getting stuck inside the sheet. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <AnimatedPressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar reporte"
+            hitSlop={6}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="x" size={16} color={colors.ink} />
+          </AnimatedPressable>
+        </View>
         <View style={styles.kv}>
           <View style={styles.kindRow}>
             <View style={[styles.dot, { backgroundColor: c }]} />

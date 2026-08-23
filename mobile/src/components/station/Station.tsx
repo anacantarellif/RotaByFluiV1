@@ -139,7 +139,13 @@ function Photo({
 }
 
 function Dot({ color }: { color: string }) {
-  return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />;
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }}
+    />
+  );
 }
 
 // Favorite ("curtir") button — pops the heart when it flips to favorited,
@@ -183,10 +189,23 @@ function FavoriteHeart({ fav, onPress }: { fav: boolean; onPress: () => void }) 
   );
 }
 
+// Reported by a screen-reader user as reading something unrelated (raw
+// visual properties, not the card's actual value/label) before — or instead
+// of — the real content. The icon inside was already excluded from the
+// accessibility tree (Icon's own accessible=false/no-hide-descendants when
+// no label is given), but the card itself had no accessibility grouping of
+// its own, so a screen reader was free to explore into its children one at
+// a time instead of announcing the card as a single, correctly-ordered
+// unit. Every mini spec card across the app follows this same
+// icon+value+label shape (see the ones reported by the user in the filter
+// sheet and the ficha's spec grid) — grouping it here fixes all of them at
+// the source.
 function Spec({ icon, label, value, sub }: { icon: IconName; label: string; value: string; sub?: string }) {
   const { colors, font, space } = useTheme();
   return (
     <View
+      accessible
+      accessibilityLabel={`${value}, ${label}${sub ? `, ${sub}` : ''}`}
       style={{
         width: '48%',
         backgroundColor: colors.surface,
@@ -261,7 +280,7 @@ export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onRe
     >
       {mode === 'peek' ? (
         <View onLayout={(e) => setPeekHeight(e.nativeEvent.layout.height)}>
-          <StationPeekContent st={st} onOpen={onOpenDetail} onNavigate={onNavigate} />
+          <StationPeekContent st={st} onOpen={onOpenDetail} onNavigate={onNavigate} onClose={onClose} />
         </View>
       ) : (
         <StationDetailContent st={st} onClose={onClose} onNavigate={onNavigate} onReport={onReport} onRate={onRate} fav={fav} onFav={onFav} />
@@ -272,13 +291,43 @@ export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onRe
 
 // ---- peek content ----
 
-function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: () => void; onNavigate: (st: Station) => void }) {
+function StationPeekContent({
+  st,
+  onOpen,
+  onNavigate,
+  onClose,
+}: {
+  st: Station;
+  onOpen: () => void;
+  onNavigate: (st: Station) => void;
+  onClose: () => void;
+}) {
   const { colors, font, space } = useTheme();
   const avLabel = AVAIL[st.avail];
   const avColor = colors[st.avail];
 
   return (
     <>
+      {/* Every other sheet in this app either had its own close button
+          already (the ficha below, RateFlow) or relied only on the
+          backdrop tap / swipe-down gesture ModalSheet provides — reported
+          as a screen reader getting stuck inside those sheets with no way
+          out: swipe-down collides with TalkBack's own swipe vocabulary,
+          and accessibilityViewIsModal keeps the backdrop out of the
+          modal's own linear-navigation order, so a screen-reader user
+          exploring by swipe never reaches it. Every sheet without an
+          existing dismiss control now gets one in its own content. */}
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.pad, paddingTop: 4 }}>
+        <AnimatedPressable
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Fechar prévia do ponto"
+          hitSlop={6}
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="x" size={16} color={colors.ink} />
+        </AnimatedPressable>
+      </View>
       <AnimatedPressable
         onPress={onOpen}
         accessibilityRole="button"
@@ -289,7 +338,11 @@ function StationPeekContent({ st, onOpen, onNavigate }: { st: Station; onOpen: (
         <View style={{ flexDirection: 'row', gap: 14 }}>
           <Photo height={84} width={84} radius={16} a11yLabel={`Foto do ponto ${st.name}`} source={stationPhoto(st.id)} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            <View
+              accessible
+              accessibilityLabel={`${avLabel}, ${st.free} de ${st.total} livres, ${st.dist}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}
+            >
               <Dot color={avColor} />
               <Text style={{ fontSize: 12, fontWeight: '700', color: avColor }}>{avLabel}</Text>
               <Text style={{ fontSize: 12, color: colors.inkFaint }}>
@@ -425,7 +478,11 @@ function StationDetailContent({
               </View>
 
               <View style={{ paddingHorizontal: space.pad, marginTop: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <View
+                  accessible
+                  accessibilityLabel={`${avLabel}, atualizado há 3 min`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}
+                >
                   <Dot color={avColor} />
                   <Text style={{ fontSize: 12, fontWeight: '700', color: avColor }}>{avLabel}</Text>
                   <Text style={{ fontSize: 12, color: colors.inkFaint }}>· Atualizado há 3 min</Text>
