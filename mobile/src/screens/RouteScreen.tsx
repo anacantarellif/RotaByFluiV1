@@ -160,7 +160,39 @@ function BatterySlider({
     </View>
   );
 
-  if (screenReaderEnabled) return track;
+  // The increment/decrement accessibility actions above only fire via
+  // TalkBack's own swipe-up/down gesture on a focused "adjustable" element
+  // — not discoverable by touch, and still reported as "not possible to
+  // drag" even with the competing pan gesture disabled (expected: dragging
+  // was never going to work for a screen-reader user, they need a
+  // different control entirely). Visible +/- buttons give an explicit,
+  // touch-discoverable way to do the same adjustment, shown only while a
+  // screen reader is active so sighted users keep the plain drag track.
+  if (screenReaderEnabled) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <AnimatedPressable
+          onPress={() => onChange(Math.max(min, value - 5))}
+          accessibilityRole="button"
+          accessibilityLabel="Diminuir bateria na saída em 5 por cento"
+          hitSlop={6}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="minus" size={18} color={colors.ink} />
+        </AnimatedPressable>
+        <View style={{ flex: 1 }}>{track}</View>
+        <AnimatedPressable
+          onPress={() => onChange(Math.min(max, value + 5))}
+          accessibilityRole="button"
+          accessibilityLabel="Aumentar bateria na saída em 5 por cento"
+          hitSlop={6}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="plus" size={18} color={colors.ink} />
+        </AnimatedPressable>
+      </View>
+    );
+  }
   return <GestureDetector gesture={pan}>{track}</GestureDetector>;
 }
 

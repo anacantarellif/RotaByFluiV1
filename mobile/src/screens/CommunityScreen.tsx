@@ -3,7 +3,7 @@
 // PORTING_GUIDE.md's "one file per source domain" — they live here instead of a
 // separate shared file.
 import React, { useRef, useState } from 'react';
-import { Animated, ScrollView, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, ScrollView, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '../components/icons/Icon';
@@ -100,6 +100,12 @@ function LikeButton({ initialLikes }: { initialLikes: number }) {
   const toggle = () => {
     const next = !liked;
     setLiked(next);
+    // accessibilityState={selected} alone wasn't enough — reported as "nada
+    // me fala que o comentário foi curtido de fato" — Android's "selected"
+    // semantics aren't reliably spoken for a plain button role the way they
+    // are for switch/checkbox roles. announceForAccessibility guarantees an
+    // explicit spoken confirmation regardless of role.
+    AccessibilityInfo.announceForAccessibility(next ? 'Curtido' : 'Curtida removida');
     if (next && !reduced) {
       pop.setValue(0.6);
       Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 3.5, tension: 260 }).start();
@@ -127,9 +133,24 @@ function FeedItem({ f }: { f: FeedItemT }) {
   const { colors } = useTheme();
   const verb = FEED_VERB[f.type];
   const station = f.station ? DATA.stations.find((s) => s.name === f.station) : undefined;
+  // Reported: a screen reader could select every child of this card one at
+  // a time (avatar initials, name, verb, station, stars, timestamp, body)
+  // instead of the whole card reading as one logical block — the exact
+  // "card should only be selectable as a whole" fix the user asked for.
+  // The static content (everything except the curtir/comentar/compartilhar
+  // row) is grouped into one accessible unit with a single computed label;
+  // the action row stays outside that group so those buttons stay
+  // individually reachable and actionable.
+  const cardLabel =
+    `${f.who} ${verb}${f.station ? ` ${f.station}` : ''}` +
+    (f.type === 'review' && f.stars != null ? `, ${f.stars} de 5 estrelas` : '') +
+    `, há ${f.when}. ${f.body}` +
+    (f.photo && station ? `. Com foto de ${station.name}` : '');
   return (
     <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.line }}>
       <View
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
         style={{
           width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface3,
           alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -138,27 +159,26 @@ function FeedItem({ f }: { f: FeedItemT }) {
         <Text style={{ fontWeight: '800', fontSize: 14, color: colors.primarySoftInk }}>{f.initials}</Text>
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 14, lineHeight: 19.6 }}>
-            <Text style={{ fontWeight: '700', color: colors.ink }}>{f.who}</Text>{' '}
-            <Text style={{ color: colors.inkSoft }}>
-              {verb} {f.station && <Text style={{ fontWeight: '600', color: colors.inkSoft }}>{f.station}</Text>}
+        <View accessible accessibilityLabel={cardLabel}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 14, lineHeight: 19.6 }}>
+              <Text style={{ fontWeight: '700', color: colors.ink }}>{f.who}</Text>{' '}
+              <Text style={{ color: colors.inkSoft }}>
+                {verb} {f.station && <Text style={{ fontWeight: '600', color: colors.inkSoft }}>{f.station}</Text>}
+              </Text>
             </Text>
-          </Text>
-          {f.type === 'review' && f.stars != null && <FeedStars n={f.stars} />}
+            {f.type === 'review' && f.stars != null && <FeedStars n={f.stars} />}
+          </View>
+          <Text style={{ fontSize: 11, marginTop: 2, marginBottom: 8, color: colors.inkFaint }}>há {f.when}</Text>
+          <Text style={{ fontSize: 14, lineHeight: 20.3, color: colors.ink }}>{f.body}</Text>
+          {f.photo && station && (
+            <Image
+              source={stationPhoto(station.id)}
+              style={{ width: '100%', height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2 }}
+              contentFit="cover"
+            />
+          )}
         </View>
-        <Text style={{ fontSize: 11, marginTop: 2, marginBottom: 8, color: colors.inkFaint }}>há {f.when}</Text>
-        <Text style={{ fontSize: 14, lineHeight: 20.3, color: colors.ink }}>{f.body}</Text>
-        {f.photo && station && (
-          <Image
-            source={stationPhoto(station.id)}
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel={`Foto da comunidade em ${station.name}`}
-            style={{ width: '100%', height: 120, borderRadius: 14, marginTop: 10, backgroundColor: colors.surface2 }}
-            contentFit="cover"
-          />
-        )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 }}>
           {/* "Comentar"/"Compartilhar" below are still what the source rendered:
               plain, non-interactive `<span>`s (no onClick at all — dead
