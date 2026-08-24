@@ -30,6 +30,7 @@ import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { ListSkeleton } from '../components/skeletons/Skeletons';
 import { useDelay } from '../hooks/useDelay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useScreenReaderEnabled } from '../hooks/useScreenReaderEnabled';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../state/ToastContext';
 import { useFavorites } from '../state/FavoritesContext';
@@ -647,6 +648,18 @@ export function MapScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [q, setQ] = useState('');
   const [view, setView] = useState<'map' | 'list'>('map');
+  // A screen-reader user can't see the map or reliably find a specific pin by
+  // touch-exploring it, so default to the list once TalkBack/VoiceOver is
+  // detected — a ref guards this so it only applies the default once and
+  // never fights a manual switch back to the map afterwards.
+  const screenReaderEnabled = useScreenReaderEnabled();
+  const appliedScreenReaderDefault = useRef(false);
+  useEffect(() => {
+    if (screenReaderEnabled && !appliedScreenReaderDefault.current) {
+      appliedScreenReaderDefault.current = true;
+      setView('list');
+    }
+  }, [screenReaderEnabled]);
   const [recenter, setRecenter] = useState(0);
   const [event, setEvent] = useState<Report | null>(null);
   const [handoff, setHandoff] = useState<Station | null>(null);

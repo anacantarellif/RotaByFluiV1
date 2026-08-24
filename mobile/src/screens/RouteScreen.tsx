@@ -12,7 +12,7 @@
 // the source RouteScreen/GuideDetail — grepped, zero occurrences — so it is not
 // wired here (per the porting task, only wire what the source actually calls).
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, ScrollView, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Seal } from '../components/icons/Icon';
@@ -172,7 +172,11 @@ function BatterySlider({
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <AnimatedPressable
-          onPress={() => onChange(Math.max(min, value - 5))}
+          onPress={() => {
+            const next = Math.max(min, value - 5);
+            onChange(next);
+            AccessibilityInfo.announceForAccessibility(`Bateria na saída, ${next} por cento`);
+          }}
           accessibilityRole="button"
           accessibilityLabel="Diminuir bateria na saída em 5 por cento"
           hitSlop={6}
@@ -182,7 +186,11 @@ function BatterySlider({
         </AnimatedPressable>
         <View style={{ flex: 1 }}>{track}</View>
         <AnimatedPressable
-          onPress={() => onChange(Math.min(max, value + 5))}
+          onPress={() => {
+            const next = Math.min(max, value + 5);
+            onChange(next);
+            AccessibilityInfo.announceForAccessibility(`Bateria na saída, ${next} por cento`);
+          }}
           accessibilityRole="button"
           accessibilityLabel="Aumentar bateria na saída em 5 por cento"
           hitSlop={6}

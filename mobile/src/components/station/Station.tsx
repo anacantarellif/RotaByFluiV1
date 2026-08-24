@@ -6,7 +6,7 @@
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, DimensionValue, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, DimensionValue, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
@@ -226,6 +226,103 @@ function Spec({ icon, label, value, sub }: { icon: IconName; label: string; valu
           {sub ? ` · ${sub}` : ''}
         </Text>
       </View>
+    </View>
+  );
+}
+
+// A whole review is one logical unit for screen readers (name, car, rating,
+// body, photo all read together) — only the "Útil" chip stays outside that
+// group so it's individually reachable, and it's now a real toggle (source
+// rendered it as a dead, unclickable chip; kept the visual but wired it up).
+function ReviewCard({ r }: { r: Review }) {
+  const { colors, space } = useTheme();
+  const [marked, setMarked] = useState(false);
+  const initials = r.who
+    .split(' ')
+    .map((s) => s[0])
+    .join('');
+  const helpfulCount = r.helpful + (marked ? 1 : 0);
+
+  function toggleHelpful() {
+    const next = !marked;
+    setMarked(next);
+    AccessibilityInfo.announceForAccessibility(
+      next ? 'Marcado como útil' : 'Marcação de útil removida'
+    );
+  }
+
+  const cardLabel =
+    `Avaliação de ${r.who}, ${r.car}, há ${r.when}, nota ${r.stars.toFixed(1).replace('.', ',')} de 5. ${r.body}` +
+    (r.photoUri ? '. Com foto anexada' : '');
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: space.radius,
+        borderWidth: 1,
+        borderColor: colors.line,
+        padding: 14,
+        marginBottom: 10,
+      }}
+    >
+      <View accessible accessibilityLabel={cardLabel}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <View
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: colors.surface3,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontWeight: '800', fontSize: 13, color: colors.primarySoftInk }}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '700', fontSize: 14, color: colors.ink }}>{r.who}</Text>
+            <Text style={{ fontSize: 11, color: colors.inkFaint }}>
+              {r.car} · há {r.when}
+            </Text>
+          </View>
+          <Stars n={r.stars} size={12} label={false} />
+        </View>
+        <Text style={{ fontSize: 14, lineHeight: 21, color: colors.ink }}>{r.body}</Text>
+        {r.photoUri && (
+          <Image
+            source={{ uri: r.photoUri }}
+            style={{ width: '100%', height: 160, borderRadius: 12, marginTop: 10, backgroundColor: colors.surface3 }}
+            contentFit="cover"
+          />
+        )}
+      </View>
+      <AnimatedPressable
+        onPress={toggleHelpful}
+        accessibilityRole="button"
+        accessibilityLabel={`Marcar como útil${marked ? ', marcado' : ''}, ${helpfulCount} pessoas acharam útil`}
+        accessibilityState={{ selected: marked }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          alignSelf: 'flex-start',
+          gap: 6,
+          marginTop: 10,
+          paddingVertical: 7,
+          paddingHorizontal: 12,
+          borderRadius: 100,
+          backgroundColor: marked ? colors.primarySoft : colors.surface,
+          borderWidth: 1,
+          borderColor: marked ? colors.primary : colors.line,
+        }}
+      >
+        <Icon name="thumb" size={13} color={marked ? colors.primary : colors.inkSoft} />
+        <Text style={{ fontSize: 12, fontWeight: '600', color: marked ? colors.primary : colors.inkSoft }}>
+          Útil · {helpfulCount}
+        </Text>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -526,6 +623,8 @@ function StationDetailContent({
 
                 {/* live availability bar */}
                 <View
+                  accessible
+                  accessibilityLabel={`Pontos livres agora, ${st.free} de ${st.total} livres, menor movimento entre ${st.quiet}`}
                   style={{
                     backgroundColor: colors.surface,
                     borderRadius: space.radius,
@@ -548,8 +647,6 @@ function StationDetailContent({
                     </Text>
                   </View>
                   <View
-                    accessibilityRole="image"
-                    accessibilityLabel={`${st.free} de ${st.total} pontos livres`}
                     style={{ height: 8, borderRadius: 5, backgroundColor: colors.surface3, overflow: 'hidden' }}
                   >
                     <View style={{ width: `${pct}%`, height: '100%', borderRadius: 5, backgroundColor: avColor }} />
@@ -718,80 +815,9 @@ function StationDetailContent({
                   </View>
                 )}
 
-                {reviews.map((r, i) => {
-                  const initials = r.who
-                    .split(' ')
-                    .map((s) => s[0])
-                    .join('');
-                  return (
-                    <View
-                      key={i}
-                      style={{
-                        backgroundColor: colors.surface,
-                        borderRadius: space.radius,
-                        borderWidth: 1,
-                        borderColor: colors.line,
-                        padding: 14,
-                        marginBottom: 10,
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                        <View
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: colors.surface3,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Text style={{ fontWeight: '800', fontSize: 13, color: colors.primarySoftInk }}>{initials}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontWeight: '700', fontSize: 14, color: colors.ink }}>{r.who}</Text>
-                          <Text style={{ fontSize: 11, color: colors.inkFaint }}>
-                            {r.car} · há {r.when}
-                          </Text>
-                        </View>
-                        <Stars n={r.stars} size={12} />
-                      </View>
-                      <Text style={{ fontSize: 14, lineHeight: 21, color: colors.ink }}>{r.body}</Text>
-                      {r.photoUri && (
-                        <Image
-                          source={{ uri: r.photoUri }}
-                          accessible
-                          accessibilityRole="image"
-                          accessibilityLabel={`Foto adicionada por ${r.who}`}
-                          style={{ width: '100%', height: 160, borderRadius: 12, marginTop: 10, backgroundColor: colors.surface3 }}
-                          contentFit="cover"
-                        />
-                      )}
-                      {/* Source renders this as a `<button className="chip">` with no
-                          onClick handler at all (a "mark helpful" affordance that was
-                          never wired up). Kept as a non-interactive chip rather than
-                          adding a Pressable that would do nothing on press. */}
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          alignSelf: 'flex-start',
-                          gap: 6,
-                          marginTop: 10,
-                          paddingVertical: 7,
-                          paddingHorizontal: 12,
-                          borderRadius: 100,
-                          backgroundColor: colors.surface,
-                          borderWidth: 1,
-                          borderColor: colors.line,
-                        }}
-                      >
-                        <Icon name="thumb" size={13} color={colors.inkSoft} />
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.inkSoft }}>Útil · {r.helpful}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
+                {reviews.map((r, i) => (
+                  <ReviewCard key={i} r={r} />
+                ))}
               </View>
             </FadeIn>
           )}

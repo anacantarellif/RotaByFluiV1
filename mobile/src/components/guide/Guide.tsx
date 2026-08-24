@@ -96,7 +96,7 @@ export function GuideCard({ g, onOpen }: { g: Guide; onOpen: () => void }) {
     <AnimatedPressable
       onPress={onOpen}
       accessibilityRole="button"
-      accessibilityLabel={`${g.title}, ${g.region}, Selo Flui nível ${g.selo}, ${g.distance} km, ${durationLabel}`}
+      accessibilityLabel={`${g.title}, ${g.region}, Selo Flui nível ${g.selo}, ${g.blurb}, ${g.distance} km, ${durationLabel}, ${g.recharges === 0 ? 'sem recarga' : g.recharges + ' recarga'}`}
       style={{ width: '100%', marginBottom: 14, borderRadius: space.radius, backgroundColor: colors.surface, overflow: 'hidden' }}
     >
       <CoverPhoto height={150} radius={0} guideId={g.id} a11yLabel={`Imagem do roteiro ${g.title}: ${g.cover}`}>
@@ -319,6 +319,8 @@ export function GuideDetail({ g, onBack, onRateGuide, rateGuide, onCloseRate, on
             </Text>
 
             <View
+              accessible
+              accessibilityLabel={META.map(([v, l]) => `${v} ${l}`).join(', ')}
               style={{
                 flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 14, paddingHorizontal: 8,
                 marginVertical: 18, borderRadius: space.radius, backgroundColor: colors.surface,
