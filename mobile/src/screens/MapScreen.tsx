@@ -449,7 +449,7 @@ function ReportSheet({
   return (
     <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Reportar situação em ${st.name}`}>
       <View
-        style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 12 }}
+        style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 20 }}
         onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
       >
         {/* No dismiss control of its own before — see the same note on
