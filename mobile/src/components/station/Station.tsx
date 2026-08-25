@@ -365,7 +365,11 @@ export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onRe
   // onLayout fires. The ficha (mode==='detail') stays on a fixed '94%': a
   // flex column (scrollable body + sticky action bar) built to fill a given
   // height, not to be measured and hugged.
-  const [peekHeight, setPeekHeight] = useState(220);
+  // 220 → 260: the close button row added to StationPeekContent (paddingTop
+  // 4 + a 36px button) added ~40px of real content that this guess didn't
+  // account for yet, so the sheet opened clipped at its own bottom edge
+  // until the very next onLayout pass caught up.
+  const [peekHeight, setPeekHeight] = useState(260);
 
   return (
     <ModalSheet

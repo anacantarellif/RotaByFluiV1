@@ -38,7 +38,10 @@ export function EventSheet({
   // past the fold) or `enableDynamicSizing` (measured the content but added
   // its own oversized gap on top of it). Falls back to a reasonable
   // estimate for the first frame, before onLayout fires.
-  const [height, setHeight] = useState(420);
+  // 420 → 460: the close button row added below added ~40px of real
+  // content (a 36px button + 4px margin) that this guess didn't account
+  // for yet, clipping the sheet's bottom edge until the next onLayout pass.
+  const [height, setHeight] = useState(460);
 
   if (!report) return null;
 
