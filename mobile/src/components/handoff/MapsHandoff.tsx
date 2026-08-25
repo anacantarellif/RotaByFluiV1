@@ -143,7 +143,7 @@ export function MapsHandoffSheet({
   return (
     <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Como navegar até ${dest.name}`}>
       <View
-        style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 18 }}
+        style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 30 }}
         onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
       >
         <Text style={[styles.eyebrow, { color: colors.inkFaint }]}>Navegar até</Text>
