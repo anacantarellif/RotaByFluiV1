@@ -434,10 +434,24 @@ function ReportSheet({
 }) {
   const { colors, font, space } = useTheme();
   const [sel, setSel] = useState<string | null>(null);
+  // This sheet had no explicit snapPoints, so it fell back to ModalSheet's
+  // default ['50%', '90%'] and always opened at the first (50%) point —
+  // not enough room for the title/subtitle + 6 report-type cards + submit
+  // button, so the button rendered right at the edge of the visible sheet,
+  // reachable only by dragging up to the second snap point first (reported
+  // as the submit button looking cut off at the bottom, since most people
+  // never discover that drag). Measuring the real content via onLayout,
+  // same pattern as the station peek card/EventSheet, sizes it exactly so
+  // everything (including the button) is visible without any drag; scroll
+  // stays on as a safety net in case the estimate below ever undershoots.
+  const [height, setHeight] = useState(430);
 
   return (
-    <ModalSheet open onClose={onClose} label={`Reportar situação em ${st.name}`}>
-      <View style={{ paddingHorizontal: space.pad, paddingTop: 4 }}>
+    <ModalSheet open onClose={onClose} snapPoints={[height]} label={`Reportar situação em ${st.name}`}>
+      <View
+        style={{ paddingHorizontal: space.pad, paddingTop: 4 }}
+        onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
+      >
         {/* No dismiss control of its own before — see the same note on
             FilterSheet above. */}
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -4 }}>
