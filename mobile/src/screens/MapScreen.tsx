@@ -441,13 +441,13 @@ function ReportSheet({
   // reachable only by dragging up to the second snap point first (reported
   // as the submit button looking cut off at the bottom, since most people
   // never discover that drag). Measuring the real content via onLayout,
-  // same pattern as the station peek card/EventSheet, sizes it exactly so
-  // everything (including the button) is visible without any drag; scroll
-  // stays on as a safety net in case the estimate below ever undershoots.
+  // same pattern (including `scroll={false}`) as the station peek
+  // card/EventSheet, sizes it exactly so everything (including the button)
+  // is visible without any drag.
   const [height, setHeight] = useState(430);
 
   return (
-    <ModalSheet open onClose={onClose} snapPoints={[height]} label={`Reportar situação em ${st.name}`}>
+    <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Reportar situação em ${st.name}`}>
       <View
         style={{ paddingHorizontal: space.pad, paddingTop: 4 }}
         onLayout={(e) => setHeight(e.nativeEvent.layout.height)}

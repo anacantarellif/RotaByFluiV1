@@ -136,13 +136,12 @@ export function MapsHandoffSheet({
   // aparece"). A flat 85% fixed that, but overshoots for this sheet's actual
   // content on most screens, leaving a visible gap below "Cancelar"
   // (reported separately). Measuring the content itself via onLayout, same
-  // pattern as the station peek card and EventSheet, sizes it exactly —
-  // scroll stays on (unlike those two) as a safety net in case the estimate
-  // below ever undershoots (e.g. larger system font size).
+  // pattern (including `scroll={false}`) as the station peek card and
+  // EventSheet, sizes it exactly.
   const [height, setHeight] = useState(580);
 
   return (
-    <ModalSheet open onClose={onClose} snapPoints={[height]} label={`Como navegar até ${dest.name}`}>
+    <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Como navegar até ${dest.name}`}>
       <View
         style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 18 }}
         onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
@@ -271,7 +270,7 @@ export function RouteHandoffSheet({
   const styles = useHandoffStyles();
   const stopCoords = useMemo(() => guideStopCoords(guide), [guide]);
   // Same fixed-85%-overshoots-actual-content fix as MapsHandoffSheet above —
-  // measured via onLayout instead, scroll left on as a safety net.
+  // measured via onLayout instead, with the same scroll={false}.
   const [height, setHeight] = useState(520);
 
   const routeApps: MapsApp[] = useMemo(
@@ -294,7 +293,7 @@ export function RouteHandoffSheet({
   };
 
   return (
-    <ModalSheet open onClose={onClose} snapPoints={[height]} label={`Abrir o roteiro ${guide.title} em outro app`}>
+    <ModalSheet open onClose={onClose} snapPoints={[height]} scroll={false} label={`Abrir o roteiro ${guide.title} em outro app`}>
       <View
         style={{ paddingHorizontal: space.pad, paddingTop: 4, paddingBottom: 18 }}
         onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
