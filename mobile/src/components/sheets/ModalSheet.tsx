@@ -63,6 +63,29 @@ export function ModalSheet({
     if (handle) setTimeout(() => AccessibilityInfo.setAccessibilityFocus(handle), 260);
   }, [open]);
 
+  // Content-hugging sheets (EventSheet, the station peek card, ReportSheet,
+  // the Maps/Waze handoff sheets) pass a single-entry `snapPoints` measured
+  // from their own content via onLayout, with a hardcoded guess for the
+  // very first frame before that measurement lands. `.present()` above
+  // fires in its own effect on mount, essentially always before that native
+  // onLayout round-trip completes — so it opens at the *guessed* height,
+  // and simply changing the `snapPoints` prop afterward does not, on its
+  // own, make an already-presented BottomSheetModal reflow to the new
+  // value (reported as sheets staying slightly clipped or oversized no
+  // matter how close the guess was). Explicitly re-snapping to index 0
+  // whenever `points` changes after the sheet is already open forces that
+  // reflow once the real measurement is in, instead of being stuck with
+  // whichever number was guessed at mount.
+  const hasPresented = useRef(false);
+  useEffect(() => {
+    if (!open) return;
+    if (!hasPresented.current) {
+      hasPresented.current = true;
+      return;
+    }
+    ref.current?.snapToIndex(0);
+  }, [points, open]);
+
   const renderBackdrop = useCallback(
     (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.5} pressBehavior="close" />,
     []
