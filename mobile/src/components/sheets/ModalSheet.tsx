@@ -54,7 +54,21 @@ export function ModalSheet({
   const insets = useSafeAreaInsets();
   const ref = useRef<BottomSheetModal>(null);
   const contentRef = useRef<View>(null);
-  const points = useMemo(() => snapPoints ?? ['50%', '90%'], [snapPoints]);
+  // A numeric entry is a content-hugging sheet's own measured content height
+  // (e.g. `[measuredHeight]`) — it doesn't know about `insets.bottom`, but
+  // the Body below always shrinks its own visible area by exactly that much
+  // to stay clear of the system nav bar (see the comment on it). Without
+  // adding it back in here, the sheet's total height was set to *just* the
+  // content's height, so that same shrink ate directly into the content
+  // instead of the intended blank margin — the last `insets.bottom` px of
+  // real content (a button, in every case reported) rendered behind the nav
+  // bar. Percentage entries are left untouched: they're a fraction of the
+  // full screen and already have enough slack baked into the chosen number
+  // that this same shrink was never visibly a problem for them.
+  const points = useMemo(
+    () => (snapPoints ?? ['50%', '90%']).map((p) => (typeof p === 'number' ? p + insets.bottom : p)),
+    [snapPoints, insets.bottom]
+  );
 
   useEffect(() => {
     if (!open) return;
