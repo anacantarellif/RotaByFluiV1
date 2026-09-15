@@ -199,3 +199,13 @@ export type RotaData = {
   };
   guides: Guide[];
 };
+
+// Real, timestamped activity log for the Profile screen's "Histórico"
+// section — not part of the original DATA mock (nothing in the source
+// tracked individual dated events; watts/missions/reviews were all
+// snapshots, not a timeline). Populated by HistoryContext.
+export type HistoryEntry =
+  | { id: string; at: number; kind: 'visit'; stationId: string; stationName: string }
+  | { id: string; at: number; kind: 'review'; stationId: string; stationName: string; stars: number }
+  | { id: string; at: number; kind: 'watts'; amount: number; reason: string }
+  | { id: string; at: number; kind: 'mission'; missionId: string; missionName: string; reward: number };

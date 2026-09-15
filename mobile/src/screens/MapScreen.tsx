@@ -35,6 +35,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../state/ToastContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useWatts } from '../state/WattsContext';
+import { useHistory } from '../state/HistoryContext';
 import { useMissions } from '../state/MissionsContext';
 import { useReviews } from '../state/ReviewsContext';
 import { useCar } from '../state/CarContext';
@@ -649,6 +650,7 @@ export function MapScreen() {
   const { pushToast } = useToast();
   const { favs, toggleFav } = useFavorites();
   const { addWatts } = useWatts();
+  const { logVisit, logReview, logWatts } = useHistory();
   const { recordRating, recordPhoto, recordReport, recordAreaVisit } = useMissions();
   const { addReview } = useReviews();
   const { car } = useCar();
@@ -707,7 +709,10 @@ export function MapScreen() {
   };
   const openDetail = () => {
     setDetail(true);
-    if (activeSt) recordAreaVisit(activeSt.area);
+    if (activeSt) {
+      recordAreaVisit(activeSt.area);
+      logVisit(activeSt.id, activeSt.name);
+    }
   };
   const close = () => {
     setActive(null);
@@ -950,6 +955,7 @@ export function MapScreen() {
           onDone={(r) => {
             setReport(null);
             addWatts(REPORT_WATTS);
+            logWatts(REPORT_WATTS, `Reportou "${r.label}" em ${report.st.name}`);
             recordReport();
             pushToast(`Reporte enviado · ${r.label}`, 'check', true);
           }}
@@ -977,6 +983,8 @@ export function MapScreen() {
           onDone={(r) => {
             setRate(null);
             addWatts(r.watts);
+            logWatts(r.watts, `Avaliou ${rate.st.name}`);
+            logReview(rate.st.id, rate.st.name, r.stars);
             recordRating();
             if (r.photos > 0) recordPhoto();
             addReview(rate.st.id, {

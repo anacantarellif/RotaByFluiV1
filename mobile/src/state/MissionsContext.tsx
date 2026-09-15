@@ -18,6 +18,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DATA } from '../data/data';
 import { useWatts } from './WattsContext';
+import { useHistory } from './HistoryContext';
 
 const STORAGE_KEY = 'rota_missions_v1';
 
@@ -50,6 +51,7 @@ const MissionsContext = createContext<MissionsContextValue | null>(null);
 
 export function MissionsProvider({ children }: { children: React.ReactNode }) {
   const { addWatts } = useWatts();
+  const { logMission } = useHistory();
   const [state, setState] = useState<MissionsState>(initialState);
   const [hydrated, setHydrated] = useState(false);
 
@@ -78,7 +80,10 @@ export function MissionsProvider({ children }: { children: React.ReactNode }) {
         if (!mission || s.completed.includes(missionId)) return s;
         const nextCount = Math.min(mission.total, (s.counts[missionId] ?? 0) + 1);
         const justCompleted = nextCount >= mission.total;
-        if (justCompleted) addWatts(mission.reward);
+        if (justCompleted) {
+          addWatts(mission.reward);
+          logMission(mission.id, mission.title, mission.reward);
+        }
         return {
           ...s,
           counts: { ...s.counts, [missionId]: nextCount },
@@ -86,7 +91,7 @@ export function MissionsProvider({ children }: { children: React.ReactNode }) {
         };
       });
     },
-    [addWatts]
+    [addWatts, logMission]
   );
 
   const value = useMemo<MissionsContextValue>(
