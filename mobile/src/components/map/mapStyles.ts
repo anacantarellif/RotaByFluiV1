@@ -24,12 +24,17 @@ export const GMAP_STYLE_DARK = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#141E28' }] },
 ];
 
-// Free, keyless raster basemap (CARTO's public tile CDN, built on OpenStreetMap
-// data) — used on Android whenever no Google Maps API key is configured, since
-// Android's Google Maps SDK refuses to load any tile imagery at all without a
-// billed key (see the comment in GeoMapView.tsx). No signup or key needed; the
-// "© OpenStreetMap contributors © CARTO" attribution these require is rendered
-// alongside every map that uses them.
-export const OSM_TILE_LIGHT = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-export const OSM_TILE_DARK = 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
+// Free, keyless raster basemap — used on Android whenever no Google Maps API
+// key is configured, since Android's Google Maps SDK refuses to load any tile
+// imagery at all without a billed key (see the comment in GeoMapView.tsx).
+// CARTO's public tile CDN (tried first) turned out to also require a free API
+// key now — tiles loaded, but tiled over with a repeating "API KEY REQUIRED"
+// watermark. OpenStreetMap's own tile servers have never required one for
+// light use like this; there's no free official dark-styled OSM tileset, so
+// LeafletMapView applies a CSS filter (invert + hue-rotate) to these same
+// tiles for dark mode instead of depending on yet another provider.
+// "© OpenStreetMap contributors" attribution is rendered alongside every map
+// that uses these, as their license requires.
+export const OSM_TILE_LIGHT = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const OSM_TILE_DARK = OSM_TILE_LIGHT;
 

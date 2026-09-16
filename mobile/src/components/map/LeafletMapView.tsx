@@ -38,6 +38,7 @@ type InMsg = StationMsg | ReportMsg | ReadyMsg;
 
 function buildHtml(opts: {
   tileUrl: string;
+  dark: boolean;
   center: { lat: number; lng: number };
   userGeo: { lat: number; lng: number };
   stations: Station[];
@@ -46,7 +47,7 @@ function buildHtml(opts: {
   showReports: boolean;
   colors: { ok: string; busy: string; off: string; primary: string; gold: string; surface: string };
 }) {
-  const { tileUrl, center, userGeo, stations, reports, activeId, showReports, colors } = opts;
+  const { tileUrl, dark, center, userGeo, stations, reports, activeId, showReports, colors } = opts;
   // Data is serialized as JSON straight into the page — this HTML is generated
   // fresh per render from our own trusted app data (DATA.stations/DATA.reports),
   // never from user input, so there's no injection concern here.
@@ -64,17 +65,20 @@ function buildHtml(opts: {
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: ${colors.surface}; }
     .attribution { position: absolute; left: 4px; bottom: 4px; z-index: 1000; font-size: 9px; background: rgba(255,255,255,0.75); padding: 1px 5px; border-radius: 4px; color: #333; }
-    .rota-dot { border-radius: 50%; border: 3px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    /* OpenStreetMap only has one official free tileset — this fakes a dark
+       basemap from it instead of depending on a second tile provider (the
+       CARTO fallback this replaced turned out to need its own key too). */
+    ${dark ? '.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }' : ''}
     .rota-user { border-radius: 50%; border: 3px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div class="attribution">© OpenStreetMap contributors © CARTO</div>
+  <div class="attribution">© OpenStreetMap contributors</div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([${center.lat}, ${center.lng}], ${DELTA_ZOOM});
-    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('${tileUrl}', { maxZoom: 19, subdomains: 'abc' }).addTo(map);
 
     var AVAIL_COLOR = { ok: '${colors.ok}', busy: '${colors.busy}', off: '${colors.off}' };
 
@@ -82,17 +86,22 @@ function buildHtml(opts: {
       if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(msg));
     }
 
+    // A classic teardrop map pin (not a flat dot) — colored by status, with a
+    // gold ring for Selo Flui stations, anchored at its bottom tip so it
+    // points at the real coordinate the way the app's own SVG pin art does.
+    function pinIcon(color, big, ring) {
+      var w = big ? 30 : 24, h = big ? 41 : 33;
+      var strokeAttr = ring ? ' stroke="${colors.gold}" stroke-width="2.5"' : ' stroke="#fff" stroke-width="1.5"';
+      var svg = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 24 33" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M12 0C5.4 0 0 5.6 0 12.4C0 21.5 12 33 12 33C12 33 24 21.5 24 12.4C24 5.6 18.6 0 12 0Z" fill="' + color + '"' + strokeAttr + '/>' +
+        '<circle cx="12" cy="12.5" r="5" fill="#fff"/>' +
+        '</svg>';
+      return L.divIcon({ className: '', html: svg, iconSize: [w, h], iconAnchor: [w / 2, h] });
+    }
+
     var stations = ${stationsJson};
     stations.forEach(function (s) {
-      var size = s.active ? 22 : 16;
-      var icon = L.divIcon({
-        className: '',
-        html: '<div class="rota-dot" style="width:' + size + 'px;height:' + size + 'px;background:' + AVAIL_COLOR[s.avail] +
-          (s.selo > 0 ? ';box-shadow:0 0 0 2px ${colors.gold}' : '') + '"></div>',
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-      });
-      var m = L.marker([s.lat, s.lng], { icon: icon }).addTo(map);
+      var m = L.marker([s.lat, s.lng], { icon: pinIcon(AVAIL_COLOR[s.avail], s.active, s.selo > 0) }).addTo(map);
       m.on('click', function () { post({ type: 'pin', id: s.id }); });
     });
 
@@ -101,7 +110,7 @@ function buildHtml(opts: {
       reports.forEach(function (r) {
         var icon = L.divIcon({
           className: '',
-          html: '<div class="rota-dot" style="width:12px;height:12px;background:' + (AVAIL_COLOR[r.color] || '${colors.primary}') + '"></div>',
+          html: '<div style="width:12px;height:12px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);background:' + (AVAIL_COLOR[r.color] || '${colors.primary}') + '"></div>',
           iconSize: [12, 12],
           iconAnchor: [6, 6],
         });
@@ -155,6 +164,7 @@ export function LeafletMapView({
     () =>
       buildHtml({
         tileUrl: mode === 'dark' ? OSM_TILE_DARK : OSM_TILE_LIGHT,
+        dark: mode === 'dark',
         center: { lat: home.lat, lng: home.lng },
         userGeo,
         stations: list,

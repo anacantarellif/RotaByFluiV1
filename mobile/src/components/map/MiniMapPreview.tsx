@@ -68,18 +68,19 @@ export function MiniMapPreview({
 <style>
   html, body, #map { height: 100%; margin: 0; padding: 0; background: ${colors.surface}; }
   .attribution { position: absolute; left: 4px; bottom: 2px; z-index: 1000; font-size: 7px; background: rgba(255,255,255,0.75); padding: 1px 4px; border-radius: 3px; color: #333; }
+  ${mode === 'dark' ? '.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }' : ''}
   .rota-dot { border-radius: 50%; border: 2px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
 </style></head>
 <body>
   <div id="map"></div>
-  <div class="attribution">© OpenStreetMap © CARTO</div>
+  <div class="attribution">© OpenStreetMap contributors</div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map('map', {
       zoomControl: false, attributionControl: false, dragging: false, touchZoom: false,
       scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false,
     }).fitBounds([[${minLat}, ${minLng}], [${maxLat}, ${maxLng}]], { padding: [24, 24] });
-    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('${tileUrl}', { maxZoom: 19, subdomains: 'abc' }).addTo(map);
     var points = ${pointsJson};
     points.forEach(function (p) {
       L.marker([p.lat, p.lng], {
