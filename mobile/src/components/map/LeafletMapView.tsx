@@ -40,7 +40,7 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useTheme } from '../../theme/ThemeContext';
 import { DATA } from '../../data/data';
 import { Station, Report } from '../../data/types';
-import { OSM_TILE_DARK, OSM_TILE_LIGHT } from './mapStyles';
+import { OSM_TILE_DARK, OSM_TILE_DARK_LABELS, OSM_TILE_LIGHT, OSM_TILE_LIGHT_LABELS } from './mapStyles';
 import { MapSkeleton } from '../skeletons/Skeletons';
 
 const DELTA_ZOOM = 13;
@@ -52,7 +52,7 @@ type InMsg = StationMsg | ReportMsg | ReadyMsg;
 
 function buildHtml(opts: {
   tileUrl: string;
-  dark: boolean;
+  labelsUrl: string;
   center: { lat: number; lng: number };
   userGeo: { lat: number; lng: number };
   stations: Station[];
@@ -61,7 +61,7 @@ function buildHtml(opts: {
   showReports: boolean;
   colors: { ok: string; busy: string; off: string; primary: string; gold: string; surface: string };
 }) {
-  const { tileUrl, dark, center, userGeo, stations, reports, activeId, showReports, colors } = opts;
+  const { tileUrl, labelsUrl, center, userGeo, stations, reports, activeId, showReports, colors } = opts;
   // Data is serialized as JSON straight into the page — this HTML is generated
   // fresh per render from our own trusted app data (DATA.stations/DATA.reports),
   // never from user input, so there's no injection concern here.
@@ -79,9 +79,6 @@ function buildHtml(opts: {
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: ${colors.surface}; }
     .attribution { position: absolute; left: 4px; bottom: 4px; z-index: 1000; font-size: 9px; background: rgba(255,255,255,0.75); padding: 1px 5px; border-radius: 4px; color: #333; }
-    /* No free dark-styled Esri tileset either — fakes a dark basemap from
-       the same light tiles instead of depending on yet another provider. */
-    ${dark ? '.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }' : ''}
     .rota-user { border-radius: 50%; border: 3px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
   </style>
 </head>
@@ -91,7 +88,8 @@ function buildHtml(opts: {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([${center.lat}, ${center.lng}], ${DELTA_ZOOM});
-    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('${tileUrl}', { maxZoom: 16 }).addTo(map);
+    L.tileLayer('${labelsUrl}', { maxZoom: 16 }).addTo(map);
 
     var AVAIL_COLOR = { ok: '${colors.ok}', busy: '${colors.busy}', off: '${colors.off}' };
 
@@ -177,7 +175,7 @@ export function LeafletMapView({
     () =>
       buildHtml({
         tileUrl: mode === 'dark' ? OSM_TILE_DARK : OSM_TILE_LIGHT,
-        dark: mode === 'dark',
+        labelsUrl: mode === 'dark' ? OSM_TILE_DARK_LABELS : OSM_TILE_LIGHT_LABELS,
         center: { lat: home.lat, lng: home.lng },
         userGeo,
         stations: list,

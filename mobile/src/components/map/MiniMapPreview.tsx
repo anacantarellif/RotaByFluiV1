@@ -24,7 +24,7 @@ import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'reac
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../../theme/ThemeContext';
 import { ROTA_CONFIG } from '../../config';
-import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT, OSM_TILE_DARK, OSM_TILE_LIGHT } from './mapStyles';
+import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT, OSM_TILE_DARK, OSM_TILE_DARK_LABELS, OSM_TILE_LIGHT, OSM_TILE_LIGHT_LABELS } from './mapStyles';
 
 export type PreviewPoint = { lat: number; lng: number };
 
@@ -61,6 +61,7 @@ export function MiniMapPreview({
   const html = useMemo(() => {
     if (!usesFreeTiles) return '';
     const tileUrl = mode === 'dark' ? OSM_TILE_DARK : OSM_TILE_LIGHT;
+    const labelsUrl = mode === 'dark' ? OSM_TILE_DARK_LABELS : OSM_TILE_LIGHT_LABELS;
     const pointsJson = JSON.stringify(points);
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" />
@@ -69,7 +70,6 @@ export function MiniMapPreview({
 <style>
   html, body, #map { height: 100%; margin: 0; padding: 0; background: ${colors.surface}; }
   .attribution { position: absolute; left: 4px; bottom: 2px; z-index: 1000; font-size: 7px; background: rgba(255,255,255,0.75); padding: 1px 4px; border-radius: 3px; color: #333; }
-  ${mode === 'dark' ? '.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }' : ''}
   .rota-dot { border-radius: 50%; border: 2px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
 </style></head>
 <body>
@@ -81,7 +81,8 @@ export function MiniMapPreview({
       zoomControl: false, attributionControl: false, dragging: false, touchZoom: false,
       scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false,
     }).fitBounds([[${minLat}, ${minLng}], [${maxLat}, ${maxLng}]], { padding: [24, 24] });
-    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('${tileUrl}', { maxZoom: 16 }).addTo(map);
+    L.tileLayer('${labelsUrl}', { maxZoom: 16 }).addTo(map);
     var points = ${pointsJson};
     points.forEach(function (p) {
       L.marker([p.lat, p.lng], {
