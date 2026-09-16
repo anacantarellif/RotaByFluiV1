@@ -23,3 +23,13 @@ export const GMAP_STYLE_DARK = [
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#141E28' }] },
 ];
+
+// Free, keyless raster basemap (CARTO's public tile CDN, built on OpenStreetMap
+// data) — used on Android whenever no Google Maps API key is configured, since
+// Android's Google Maps SDK refuses to load any tile imagery at all without a
+// billed key (see the comment in GeoMapView.tsx). No signup or key needed; the
+// "© OpenStreetMap contributors © CARTO" attribution these require is rendered
+// alongside every map that uses them.
+export const OSM_TILE_LIGHT = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+export const OSM_TILE_DARK = 'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
+
