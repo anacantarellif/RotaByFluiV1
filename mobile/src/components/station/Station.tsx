@@ -6,9 +6,8 @@
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, DimensionValue, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, DimensionValue, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
@@ -541,7 +540,19 @@ function StationDetailContent({
 
   return (
     <View style={{ flex: 1 }}>
-      <BottomSheetScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
+      {/* Plain RN ScrollView, not BottomSheetScrollView: the latter's pan
+          gesture is built on react-native-gesture-handler, which a WebView
+          on the same screen (the map's Leaflet fallback, GeoMapView.tsx →
+          LeafletMapView.tsx) can leave in a corrupted state even after
+          unmounting — reported as this exact scroll working fine when the
+          ficha opens from Favoritos (no WebView ever mounted there) but
+          frozen when it opens from the map or list view (both live on
+          MapScreen, which does mount that WebView). Plain ScrollView uses
+          RN's native ScrollResponder, entirely outside gesture-handler, so
+          it isn't exposed to that corruption — and it's a genuine
+          accessibility improvement either way, since it supports standard
+          screen-reader scroll actions natively instead of only a drag. */}
+      <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
           {!ready && <StationSkeleton />}
           {ready && (
             <FadeIn>
@@ -825,7 +836,7 @@ function StationDetailContent({
               </View>
             </FadeIn>
           )}
-        </BottomSheetScrollView>
+        </ScrollView>
 
         {/* sticky actions — this bar sits outside the ScrollView above (the
             sheet opens with scroll={false} so it can own its own internal
