@@ -17,8 +17,8 @@
 // (`BottomSheetModalProvider` in App.tsx), so it's always on top of everything,
 // tab bar included, regardless of how deep the screen that opened it is nested.
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { AccessibilityInfo, findNodeHandle, StyleSheet, View } from 'react-native';
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import { AccessibilityInfo, findNodeHandle, ScrollView, StyleSheet, View } from 'react-native';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 
@@ -105,7 +105,10 @@ export function ModalSheet({
 
   if (!open) return null;
 
-  const Body = scroll ? BottomSheetScrollView : BottomSheetView;
+  // Typed as ComponentType<any>: ScrollView and BottomSheetView don't share
+  // a ref type, and TS's JSX union-element inference drops `ref` entirely
+  // when picking between two differently-typed components like this.
+  const Body: React.ComponentType<any> = scroll ? ScrollView : BottomSheetView;
 
   return (
     <BottomSheetModal
