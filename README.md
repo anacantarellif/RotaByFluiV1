@@ -83,7 +83,7 @@ Recurso tratado como requisito funcional, não como polimento final — constru�
 
 ## 🛠️ Tecnologias
 
-- [Expo](https://expo.dev) (SDK 54) + React Native + TypeScript
+- [Expo](https://expo.dev) (SDK 57) + React Native + TypeScript
 - [react-native-maps](https://github.com/react-native-maps/react-native-maps) (Google Maps)
 - [@gorhom/bottom-sheet](https://gorhom.dev/react-native-bottom-sheet/) para as folhas deslizantes
 - [expo-image](https://docs.expo.dev/versions/latest/sdk/image/) para fotografia real
