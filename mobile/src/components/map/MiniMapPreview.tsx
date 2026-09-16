@@ -19,6 +19,7 @@
 // touch events are disabled, same as the native path's props already did).
 import React, { useMemo } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../../theme/ThemeContext';
@@ -73,14 +74,14 @@ export function MiniMapPreview({
 </style></head>
 <body>
   <div id="map"></div>
-  <div class="attribution">© OpenStreetMap contributors</div>
+  <div class="attribution">Tiles © Esri</div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map('map', {
       zoomControl: false, attributionControl: false, dragging: false, touchZoom: false,
       scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false,
     }).fitBounds([[${minLat}, ${minLng}], [${maxLat}, ${maxLng}]], { padding: [24, 24] });
-    L.tileLayer('${tileUrl}', { maxZoom: 19, subdomains: 'abc' }).addTo(map);
+    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
     var points = ${pointsJson};
     points.forEach(function (p) {
       L.marker([p.lat, p.lng], {
@@ -103,16 +104,21 @@ export function MiniMapPreview({
       accessibilityLabel="Prévia do trajeto no mapa"
     >
       {usesFreeTiles ? (
-        <WebView
-          source={{ html }}
-          style={StyleSheet.absoluteFill}
-          javaScriptEnabled
-          domStorageEnabled
-          originWhitelist={['*']}
-          scrollEnabled={false}
-          bounces={false}
-          pointerEvents="none"
-        />
+        // Own GestureHandlerRootView — see the note on LeafletMapView.tsx:
+        // a WebView can leave the app's shared gesture-handler registry in a
+        // bad state for sheets/scrolls elsewhere even after it unmounts.
+        <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+          <WebView
+            source={{ html }}
+            style={StyleSheet.absoluteFill}
+            javaScriptEnabled
+            domStorageEnabled
+            originWhitelist={['*']}
+            scrollEnabled={false}
+            bounces={false}
+            pointerEvents="none"
+          />
+        </GestureHandlerRootView>
       ) : (
         <MapView
           style={StyleSheet.absoluteFill}

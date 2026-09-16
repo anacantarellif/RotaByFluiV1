@@ -20,8 +20,22 @@
 // WebView's own HTML/CSS/JS world, so the native <StationPin>/<ReportPin> SVG
 // components can't be reused directly here. Same information (status color,
 // tap-to-open), simpler look, only on this fallback path.
+//
+// Wrapped in its own <GestureHandlerRootView>: reported that every bottom
+// sheet opened from this screen (map pin tap, list-view row tap) stopped
+// being scrollable — but the *same* ficha opened from Favoritos (Profile
+// screen, never touches this component) scrolled fine. That split points
+// at a known Android-specific react-native-webview + react-native-gesture-
+// handler interaction: a WebView can leave the native gesture-handler
+// registry in a bad state for the rest of the screen even after it
+// unmounts, not just while it's on screen (matches "the list view — no
+// WebView actually mounted there — was affected too"). Scoping this
+// WebView inside its own nested GestureHandlerRootView is the documented
+// mitigation: it isolates the WebView's own touch handling instead of
+// letting it share (and corrupt) the app's single root gesture context.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useTheme } from '../../theme/ThemeContext';
 import { DATA } from '../../data/data';
@@ -65,20 +79,19 @@ function buildHtml(opts: {
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: ${colors.surface}; }
     .attribution { position: absolute; left: 4px; bottom: 4px; z-index: 1000; font-size: 9px; background: rgba(255,255,255,0.75); padding: 1px 5px; border-radius: 4px; color: #333; }
-    /* OpenStreetMap only has one official free tileset — this fakes a dark
-       basemap from it instead of depending on a second tile provider (the
-       CARTO fallback this replaced turned out to need its own key too). */
+    /* No free dark-styled Esri tileset either — fakes a dark basemap from
+       the same light tiles instead of depending on yet another provider. */
     ${dark ? '.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }' : ''}
     .rota-user { border-radius: 50%; border: 3px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div class="attribution">© OpenStreetMap contributors</div>
+  <div class="attribution">Tiles © Esri</div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([${center.lat}, ${center.lng}], ${DELTA_ZOOM});
-    L.tileLayer('${tileUrl}', { maxZoom: 19, subdomains: 'abc' }).addTo(map);
+    L.tileLayer('${tileUrl}', { maxZoom: 19 }).addTo(map);
 
     var AVAIL_COLOR = { ok: '${colors.ok}', busy: '${colors.busy}', off: '${colors.off}' };
 
@@ -202,19 +215,21 @@ export function LeafletMapView({
   };
 
   return (
-    <View style={StyleSheet.absoluteFill} accessibilityLabel="Mapa interativo dos pontos de recarga">
-      <WebView
-        ref={webRef}
-        source={{ html }}
-        style={StyleSheet.absoluteFill}
-        onMessage={onMessage}
-        javaScriptEnabled
-        domStorageEnabled
-        originWhitelist={['*']}
-        scrollEnabled={false}
-        bounces={false}
-      />
-      {loading && <MapSkeleton />}
-    </View>
+    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+      <View style={StyleSheet.absoluteFill} accessibilityLabel="Mapa interativo dos pontos de recarga">
+        <WebView
+          ref={webRef}
+          source={{ html }}
+          style={StyleSheet.absoluteFill}
+          onMessage={onMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          originWhitelist={['*']}
+          scrollEnabled={false}
+          bounces={false}
+        />
+        {loading && <MapSkeleton />}
+      </View>
+    </GestureHandlerRootView>
   );
 }

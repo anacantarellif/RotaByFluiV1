@@ -29,12 +29,20 @@ export const GMAP_STYLE_DARK = [
 // imagery at all without a billed key (see the comment in GeoMapView.tsx).
 // CARTO's public tile CDN (tried first) turned out to also require a free API
 // key now — tiles loaded, but tiled over with a repeating "API KEY REQUIRED"
-// watermark. OpenStreetMap's own tile servers have never required one for
-// light use like this; there's no free official dark-styled OSM tileset, so
-// LeafletMapView applies a CSS filter (invert + hue-rotate) to these same
-// tiles for dark mode instead of depending on yet another provider.
-// "© OpenStreetMap contributors" attribution is rendered alongside every map
-// that uses these, as their license requires.
-export const OSM_TILE_LIGHT = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+// watermark. Plain OpenStreetMap tiles worked with no key at all, but read as
+// visually "busier" than Google's own clean default style (every POI icon
+// rendered at moderate zoom, thick road casings) — Esri's free ArcGIS Online
+// "World_Street_Map" tileset (no signup, been the standard free Leaflet
+// alternative for years, longer track record than CARTO's) is a closer match
+// to that muted look, with the same standard behavior of revealing more
+// detail at higher zoom every raster tile provider has. Note the {y}/{x}
+// order in Esri's URL — reversed from the {x}/{y} every other provider here
+// uses. There's no free Esri dark tileset either, so LeafletMapView applies
+// the same CSS filter (invert + hue-rotate) to these for dark mode.
+// Attribution ("Esri" + OpenStreetMap contributors, since Esri's own street
+// data is OSM-derived in many regions) is rendered alongside every map that
+// uses these, per both licenses' requirements.
+export const OSM_TILE_LIGHT = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
 export const OSM_TILE_DARK = OSM_TILE_LIGHT;
+
 
