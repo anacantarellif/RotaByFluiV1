@@ -1,27 +1,28 @@
 // Ported from project/app/gmap.jsx <GeoMapView>. See docs/MAPS.md.
 //
 // The web prototype has two interchangeable providers (Google JS API vs a keyless
-// raster-tile fallback) so it can be demoed with no billing account. react-native-maps
-// doesn't have an equivalent keyless path built into PROVIDER_GOOGLE on Android (the
-// map canvas itself is always backed by Google Play Services there, and Android's
-// Google Maps SDK refuses to load any tile imagery — a blank grid — without a billed
-// API key; reported as "o mapa continua desconfigurado" even after a demo/shared key).
-// Mirrors the web prototype's own fallback instead: without a key, render the same
-// native MapView canvas (still fully pannable/zoomable, markers still work — none of
-// that needs Google's tiles) with `PROVIDER_DEFAULT` and cover it with a free
-// OpenStreetMap-based raster tile layer (`UrlTile`, no key or billing required at all)
-// on Android — iOS's PROVIDER_DEFAULT is already Apple Maps for free, so it needs
-// nothing extra. `googleMapsApiKey` filled in later switches straight back to real
-// Google tiles with no other code change.
+// raster-tile fallback) so it can be demoed with no billing account. On Android,
+// react-native-maps' map canvas is always backed by the Google Maps Android SDK,
+// and that SDK doesn't just fail to load tile *imagery* without a billed key — its
+// underlying native map object fails to initialize at all (reported: a completely
+// blank grid, still there even after covering it with a free `UrlTile` overlay,
+// because there was no working native map underneath for that overlay to attach
+// to). Without a key, Android renders <LeafletMapView> instead — a WebView running
+// Leaflet.js against free OpenStreetMap tiles, a real map engine with zero Google
+// dependency (see that file's own header for the full story). iOS keeps the native
+// MapView either way: PROVIDER_DEFAULT there is Apple Maps, already free and
+// unaffected by any of this. `googleMapsApiKey` filled in later switches Android
+// straight back to the real native Google map, same as before.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region, UrlTile } from 'react-native-maps';
+import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useTheme } from '../../theme/ThemeContext';
 import { ROTA_CONFIG } from '../../config';
 import { DATA } from '../../data/data';
 import { Station, Report } from '../../data/types';
-import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT, OSM_TILE_DARK, OSM_TILE_LIGHT } from './mapStyles';
+import { GMAP_STYLE_DARK, GMAP_STYLE_LIGHT } from './mapStyles';
 import { pinLabel, ReportPin, StationPin } from './MarkerPins';
+import { LeafletMapView } from './LeafletMapView';
 import { MapSkeleton } from '../skeletons/Skeletons';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
@@ -47,7 +48,6 @@ export function GeoMapView({
   const [loading, setLoading] = useState(true);
   const hasKey = !!ROTA_CONFIG.googleMapsApiKey;
   const provider = hasKey ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
-  const usesFreeTiles = !hasKey && Platform.OS === 'android';
 
   const list = stations ?? DATA.stations;
   const home = DATA.map_default;
@@ -68,6 +68,19 @@ export function GeoMapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recenterSignal]);
 
+  if (!hasKey && Platform.OS === 'android') {
+    return (
+      <LeafletMapView
+        stations={stations}
+        active={active}
+        onPin={onPin}
+        onReport={onReport}
+        showReports={showReports}
+        recenterSignal={recenterSignal}
+      />
+    );
+  }
+
   return (
     <View style={StyleSheet.absoluteFill}>
       <MapView
@@ -84,14 +97,6 @@ export function GeoMapView({
         onMapLoaded={() => setLoading(false)}
         accessibilityLabel="Mapa interativo dos pontos de recarga"
       >
-        {usesFreeTiles && (
-          <UrlTile
-            urlTemplate={mode === 'dark' ? OSM_TILE_DARK : OSM_TILE_LIGHT}
-            maximumZ={19}
-            zIndex={-1}
-          />
-        )}
-
         {/* Every custom-view Marker in this file uses tracksViewChanges
             permanently true — read react-native-maps' own Android source
             (MapMarker.java) to settle this instead of guessing again.
@@ -159,35 +164,10 @@ export function GeoMapView({
         </Marker>
       </MapView>
 
-      {/* Required by OpenStreetMap's data license (ODbL) whenever its tiles
-          are shown — Google's own attribution renders itself automatically
-          via the SDK, so this only appears for the free-tile fallback. */}
-      {usesFreeTiles && (
-        <View style={styles.attribution} pointerEvents="none">
-          <Text style={styles.attributionText}>© OpenStreetMap contributors © CARTO</Text>
-        </View>
-      )}
-
       {loading && <MapSkeleton />}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  attribution: {
-    position: 'absolute',
-    left: 6,
-    bottom: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.75)',
-  },
-  attributionText: {
-    fontSize: 9,
-    color: '#333',
-  },
-});
 
 // Ported from styles.css `.userdot .pulse` — an expanding, fading ring
 // behind the solid position dot, looping.
