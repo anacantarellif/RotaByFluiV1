@@ -151,12 +151,26 @@ export function ModalSheet({
       // did (only closing once scrolled to the top and pulled further) —
       // without this, the two gestures raced for every touch, so it took
       // two fingers to find the one that actually scrolled instead of
-      // closing the sheet (reported). Turning content panning off here
-      // hands the content area entirely to the ScrollView; the sheet is
-      // still dismissible without any drag at all via its handle (still
-      // draggable — enableHandlePanningGesture stays on), the backdrop
-      // tap, or each sheet's own close button.
-      enableContentPanningGesture={!scrollableContent}
+      // closing the sheet (reported).
+      //
+      // `enableContentPanningGesture={false}` was the first fix tried here
+      // — it "worked" for plain scrolling, but broke tapping a Pressable
+      // inside that content entirely (reported: picking a star in RateFlow
+      // closed the whole sheet). That prop swaps the content wrapper's
+      // actual component type internally (BottomSheetContent.tsx), a path
+      // with multiple open upstream bugs for exactly this kind of breakage
+      // (gorhom/react-native-bottom-sheet#2330, #765, #1570) — not this
+      // app's logic, the library's own content-panning toggle is
+      // unreliable in this version. `enableContentPanningGesture` stays on
+      // its default (true) instead, keeping that content wrapper on its
+      // normal, stable path; giving its own pan gesture an enormous
+      // activation threshold makes it never actually recognize a drag as
+      // its own, so a scrollable sheet's content area works exactly like
+      // plain RN content — taps and scrolls both reach it untouched. The
+      // sheet is still dismissible without any drag at all via its handle
+      // (unaffected — a separate gesture), the backdrop tap, or each
+      // sheet's own close button.
+      activeOffsetY={scrollableContent ? [-999999, 999999] : undefined}
       // @gorhom/bottom-sheet defaults this to true, which makes the sheet
       // auto-size to its rendered content's natural height instead of
       // respecting `snapPoints`/`index` above. Every *Sheet in this app

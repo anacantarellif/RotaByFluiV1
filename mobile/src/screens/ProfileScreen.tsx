@@ -24,12 +24,16 @@ import { useFavorites } from '../state/FavoritesContext';
 import { useCar } from '../state/CarContext';
 import { useWatts } from '../state/WattsContext';
 import { useHistory } from '../state/HistoryContext';
+import { useToast } from '../state/ToastContext';
+import { useMissions } from '../state/MissionsContext';
+import { useReviews } from '../state/ReviewsContext';
 import { Icon, IconName } from '../components/icons/Icon';
 import { AnimatedPressable } from '../components/motion/AnimatedPressable';
 import { BrandMark } from '../components/BrandMark';
 import { ModalSheet } from '../components/sheets/ModalSheet';
 import { StationSheet } from '../components/station/Station';
 import { MapsHandoffSheet } from '../components/handoff/MapsHandoff';
+import { RateFlow } from '../components/rating/RateFlow';
 import { DATA } from '../data/data';
 import { HistoryEntry, Station } from '../data/types';
 import { Density, ThemeMode } from '../theme/tokens';
@@ -56,13 +60,17 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { favs, toggleFav } = useFavorites();
   const { car, setCarId } = useCar();
-  const { watts } = useWatts();
-  const { entries: historyEntries } = useHistory();
+  const { watts, addWatts } = useWatts();
+  const { entries: historyEntries, logWatts, logReview } = useHistory();
+  const { pushToast } = useToast();
+  const { recordRating, recordPhoto } = useMissions();
+  const { addReview } = useReviews();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [carPickerOpen, setCarPickerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<Station | null>(null);
+  const [rate, setRate] = useState<{ st: Station } | null>(null);
 
   const u = DATA.user;
   const favStations = DATA.stations.filter((s) => favs.has(s.id));
@@ -76,6 +84,15 @@ export function ProfileScreen() {
   const openHandoff = (s: Station) => {
     setActiveId(null);
     setTimeout(() => setHandoff(s), 280);
+  };
+
+  // Same pattern as openHandoff above — Favoritos never wired up the
+  // ficha's "Avaliar" button at all (StationSheet's onRate is optional and
+  // was simply never passed here), so it silently did nothing when tapped
+  // (reported).
+  const openRate = (s: Station) => {
+    setActiveId(null);
+    setTimeout(() => setRate({ st: s }), 280);
   };
 
   return (
@@ -430,11 +447,37 @@ export function ProfileScreen() {
           onOpenDetail={() => {}}
           onClose={() => setActiveId(null)}
           onNavigate={openHandoff}
+          onRate={openRate}
           fav={favs.has(activeSt.id)}
           onFav={(s) => toggleFav(s.id)}
         />
       )}
       {handoff && <MapsHandoffSheet dest={handoff} onClose={() => setHandoff(null)} />}
+      {rate && (
+        <RateFlow
+          target={rate.st}
+          kind="station"
+          onClose={() => setRate(null)}
+          onDone={(r) => {
+            setRate(null);
+            addWatts(r.watts);
+            logWatts(r.watts, `Avaliou ${rate.st.name}`);
+            logReview(rate.st.id, rate.st.name, r.stars);
+            recordRating();
+            if (r.photos > 0) recordPhoto();
+            addReview(rate.st.id, {
+              who: 'Você',
+              when: 'agora',
+              stars: r.stars,
+              body: r.body || 'Avaliação sem comentário.',
+              helpful: 0,
+              car: `${car.brand} ${car.model}`,
+              photoUri: r.photoUris[0],
+            });
+            pushToast(r.selo ? `Avaliação + indicação ao Selo Flui · +${r.watts} W` : `Avaliação publicada · +${r.watts} Watts`, 'check', true);
+          }}
+        />
+      )}
     </View>
   );
 }
