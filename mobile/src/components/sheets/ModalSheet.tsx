@@ -73,7 +73,17 @@ export function ModalSheet({
   // every content-hugging sheet use the `scroll={false}` path that was
   // already proven correct, not patching ModalSheet itself — see
   // `scroll={false}` on ReportSheet/MapsHandoffSheet/RouteHandoffSheet.
-  const points = useMemo(() => snapPoints ?? ['50%', '90%'], [snapPoints]);
+  // Keyed on the *values* (joined into a string), not the `snapPoints` array
+  // reference: most callers pass an inline array literal (`snapPoints={['92%']}`),
+  // a fresh reference on every one of that screen's own re-renders — e.g.
+  // RateFlow re-rendering on every star tap (`setStars`). Keying on the
+  // reference made `points` "change" on those re-renders too even though the
+  // actual snap value never did, which fired the re-snap effect below mid-tap
+  // (reported: picking a star closed the whole sheet). Only a real value
+  // change — a measured height from onLayout actually landing — should
+  // re-trigger that reflow.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const points = useMemo(() => snapPoints ?? ['50%', '90%'], [snapPoints?.join(',')]);
 
   useEffect(() => {
     if (!open) return;
