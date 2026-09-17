@@ -42,6 +42,7 @@ import { DATA } from '../../data/data';
 import { Station, Report } from '../../data/types';
 import { OSM_TILE_DARK, OSM_TILE_DARK_LABELS, OSM_TILE_LIGHT, OSM_TILE_LIGHT_LABELS } from './mapStyles';
 import { MapSkeleton } from '../skeletons/Skeletons';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const DELTA_ZOOM = 13;
 
@@ -60,8 +61,9 @@ function buildHtml(opts: {
   activeId?: string | null;
   showReports: boolean;
   colors: { ok: string; busy: string; off: string; primary: string; gold: string; surface: string };
+  reducedMotion: boolean;
 }) {
-  const { tileUrl, labelsUrl, center, userGeo, stations, reports, activeId, showReports, colors } = opts;
+  const { tileUrl, labelsUrl, center, userGeo, stations, reports, activeId, showReports, colors, reducedMotion } = opts;
   // Data is serialized as JSON straight into the page — this HTML is generated
   // fresh per render from our own trusted app data (DATA.stations/DATA.reports),
   // never from user input, so there's no injection concern here.
@@ -79,7 +81,24 @@ function buildHtml(opts: {
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: ${colors.surface}; }
     .attribution { position: absolute; left: 4px; bottom: 4px; z-index: 1000; font-size: 9px; background: rgba(255,255,255,0.75); padding: 1px 5px; border-radius: 4px; color: #333; }
-    .rota-user { border-radius: 50%; border: 3px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    .rota-user-wrap { position: relative; width: 40px; height: 40px; }
+    .rota-user, .rota-pulse {
+      position: absolute; left: 50%; top: 50%; width: 16px; height: 16px;
+      margin-left: -8px; margin-top: -8px; border-radius: 50%;
+    }
+    .rota-user { border: 3px solid #fff; background: ${colors.primary}; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    ${
+      reducedMotion
+        ? ''
+        : `.rota-pulse {
+      background: ${colors.primary};
+      animation: rota-pulse-wave 2s ease-out infinite;
+    }
+    @keyframes rota-pulse-wave {
+      0% { transform: scale(1); opacity: 0.55; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }`
+    }
   </style>
 </head>
 <body>
@@ -141,7 +160,12 @@ function buildHtml(opts: {
     }
 
     L.marker([${userGeo.lat}, ${userGeo.lng}], {
-      icon: L.divIcon({ className: '', html: '<div class="rota-user" style="width:16px;height:16px"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }),
+      icon: L.divIcon({
+        className: '',
+        html: '<div class="rota-user-wrap">' + ${reducedMotion ? "''" : "'<div class=\"rota-pulse\"></div>'"} + '<div class="rota-user"></div></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      }),
       interactive: false,
     }).addTo(map);
 
@@ -171,6 +195,7 @@ export function LeafletMapView({
   recenterSignal?: number;
 }) {
   const { mode, colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const webRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
 
@@ -192,10 +217,11 @@ export function LeafletMapView({
         reports: DATA.reports,
         activeId: active,
         showReports,
+        reducedMotion,
         colors: { ok: colors.ok, busy: colors.busy, off: colors.off, primary: colors.primary, gold: colors.gold, surface: colors.surface },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, list, active, showReports]
+    [mode, list, active, showReports, reducedMotion]
   );
 
   useEffect(() => {
