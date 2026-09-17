@@ -17,8 +17,8 @@
 // (`BottomSheetModalProvider` in App.tsx), so it's always on top of everything,
 // tab bar included, regardless of how deep the screen that opened it is nested.
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { AccessibilityInfo, findNodeHandle, StyleSheet, View } from 'react-native';
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import { AccessibilityInfo, findNodeHandle, ScrollView, StyleSheet, View } from 'react-native';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 
@@ -31,6 +31,7 @@ export function ModalSheet({
   onClose,
   snapPoints,
   scroll = true,
+  scrollableContent = scroll,
   label,
   children,
 }: {
@@ -47,6 +48,13 @@ export function ModalSheet({
   // used here at all — every *Sheet in this app passes explicit snapPoints.
   snapPoints?: (string | number)[];
   scroll?: boolean;
+  // True when `children` scroll internally on their own instead of through
+  // this component's own `Body` (StationSheet's ficha, RateFlow — both pass
+  // `scroll={false}` here but render their own ScrollView deeper down).
+  // Defaults to `scroll`, since when this component's own Body *is* the
+  // scroll region, that's obviously "scrollable content" too. See the note
+  // by `enableContentPanningGesture` below for what this actually controls.
+  scrollableContent?: boolean;
   label: string; // accessibilityLabel for the dialog, e.g. "Reportar evento"
   children: React.ReactNode;
 }) {
@@ -57,15 +65,14 @@ export function ModalSheet({
   // Tried adding `insets.bottom` to numeric (measured) entries here to
   // compensate for the Body's own shrink below — overcorrected: the two
   // sheets this was meant to fix (ReportSheet, the Maps/Waze handoffs) use
-  // `scroll` (BottomSheetScrollView), while the two sheets that were already
-  // correct without any adjustment (the station peek card, EventSheet) use
-  // `scroll={false}` (plain BottomSheetView) — reported as those two
-  // suddenly gaining a large blank gap they never had before. The two
-  // Body implementations evidently don't need the same compensation, so
-  // the real fix is making every content-hugging sheet use the
-  // `scroll={false}` path that was already proven correct, not patching
-  // ModalSheet itself — see `scroll={false}` on ReportSheet/MapsHandoffSheet/
-  // RouteHandoffSheet.
+  // `scroll`, while the two sheets that were already correct without any
+  // adjustment (the station peek card, EventSheet) use `scroll={false}`
+  // (plain BottomSheetView) — reported as those two suddenly gaining a
+  // large blank gap they never had before. The two Body implementations
+  // evidently don't need the same compensation, so the real fix is making
+  // every content-hugging sheet use the `scroll={false}` path that was
+  // already proven correct, not patching ModalSheet itself — see
+  // `scroll={false}` on ReportSheet/MapsHandoffSheet/RouteHandoffSheet.
   const points = useMemo(() => snapPoints ?? ['50%', '90%'], [snapPoints]);
 
   useEffect(() => {
@@ -105,7 +112,22 @@ export function ModalSheet({
 
   if (!open) return null;
 
-  const Body = scroll ? BottomSheetScrollView : BottomSheetView;
+  // Plain RN ScrollView, not BottomSheetScrollView: the latter's pan
+  // gesture is built on react-native-gesture-handler, which a WebView
+  // elsewhere on the same screen (the map's Leaflet fallback,
+  // GeoMapView.tsx → LeafletMapView.tsx) can leave in a corrupted state
+  // even after unmounting — reported as a sheet's scroll working fine
+  // when opened from Favoritos (no WebView ever mounted there) but frozen
+  // when opened from the map or list view (both live on MapScreen, which
+  // does mount that WebView). Plain ScrollView uses RN's native
+  // ScrollResponder, entirely outside gesture-handler, so it isn't
+  // exposed to that corruption.
+  //
+  // Typed as ComponentType<any>: ScrollView and BottomSheetView don't
+  // share a ref type, and TS's JSX union-element inference drops `ref`
+  // entirely when picking between two differently-typed components like
+  // this.
+  const Body: React.ComponentType<any> = scroll ? ScrollView : BottomSheetView;
 
   return (
     <BottomSheetModal
@@ -114,6 +136,17 @@ export function ModalSheet({
       snapPoints={points}
       onDismiss={onClose}
       enablePanDownToClose
+      // A plain ScrollView doesn't know how to hand a drag off to the
+      // sheet's own pan-to-dismiss gesture the way BottomSheetScrollView
+      // did (only closing once scrolled to the top and pulled further) —
+      // without this, the two gestures raced for every touch, so it took
+      // two fingers to find the one that actually scrolled instead of
+      // closing the sheet (reported). Turning content panning off here
+      // hands the content area entirely to the ScrollView; the sheet is
+      // still dismissible without any drag at all via its handle (still
+      // draggable — enableHandlePanningGesture stays on), the backdrop
+      // tap, or each sheet's own close button.
+      enableContentPanningGesture={!scrollableContent}
       // @gorhom/bottom-sheet defaults this to true, which makes the sheet
       // auto-size to its rendered content's natural height instead of
       // respecting `snapPoints`/`index` above. Every *Sheet in this app

@@ -6,9 +6,8 @@
 // role="dialog" aria-modal) so it's built on the shared <ModalSheet> per
 // PORTING_GUIDE.md ("station detail as a sheet if the source presents it that way").
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, DimensionValue, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, DimensionValue, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTheme } from '../../theme/ThemeContext';
 import { Icon, IconName, SeloBadge } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
@@ -377,6 +376,12 @@ export function StationSheet({ st, mode, onOpenDetail, onClose, onNavigate, onRe
       onClose={onClose}
       snapPoints={mode === 'peek' ? [peekHeight] : ['94%']}
       scroll={false}
+      // The peek card has no scroll at all (content-hugging, sized to fit),
+      // but the ficha's StationDetailContent owns its own internal
+      // ScrollView below — same reason ModalSheet's own `scrollableContent`
+      // needs telling here, since `scroll={false}` above only describes
+      // ModalSheet's own Body, not what `children` does internally.
+      scrollableContent={mode === 'detail'}
       label={mode === 'peek' ? `Prévia: ${st.name}` : `Ficha do ponto ${st.name}`}
     >
       {mode === 'peek' ? (
@@ -541,7 +546,10 @@ function StationDetailContent({
 
   return (
     <View style={{ flex: 1 }}>
-      <BottomSheetScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
+      {/* Plain ScrollView, and `scrollableContent` passed to the parent
+          ModalSheet turns its content-panning gesture off — see both
+          comments in ModalSheet.tsx for why. */}
+      <ScrollView contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}>
           {!ready && <StationSkeleton />}
           {ready && (
             <FadeIn>
@@ -825,7 +833,7 @@ function StationDetailContent({
               </View>
             </FadeIn>
           )}
-        </BottomSheetScrollView>
+        </ScrollView>
 
         {/* sticky actions — this bar sits outside the ScrollView above (the
             sheet opens with scroll={false} so it can own its own internal

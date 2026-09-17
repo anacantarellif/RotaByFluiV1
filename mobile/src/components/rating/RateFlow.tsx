@@ -3,10 +3,9 @@
 // see docs/HANDOFF.md §6 — triggered on arrival at a station, at the end of a
 // roteiro/itinerary, or from the station detail sheet). Exports: RateFlow.
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Animated, ScrollView, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Icon, Seal } from '../icons/Icon';
 import { ModalSheet } from '../sheets/ModalSheet';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
@@ -286,6 +285,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
       label={`Avaliar ${isGuide ? 'roteiro' : 'ponto'}: ${title}`}
       snapPoints={['92%']}
       scroll={false}
+      scrollableContent
     >
       <View style={{ flex: 1 }}>
         {/* ---------- header + step progress ---------- */}
@@ -337,9 +337,12 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
             default, so on a real device with real content the "Continuar"
             footer below could end up genuinely unreachable, not just visually
             crowded (reported: needing to scroll to see it, when there was
-            nothing to scroll). BottomSheetScrollView actually gives it
-            somewhere to go, same pattern as StationDetailContent's ficha. */}
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 20 }}>
+            nothing to scroll). Plain ScrollView actually gives it somewhere
+            to go, same pattern as StationDetailContent's ficha — and
+            `scrollableContent` on the ModalSheet above turns off its
+            content-panning gesture so it doesn't fight this ScrollView for
+            the same drag (see ModalSheet.tsx). */}
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 20 }}>
             {step === 0 && (
               <View>
                 <View
@@ -612,7 +615,7 @@ export function RateFlow({ target, kind = 'station', onClose, onDone, pushToast:
                 </View>
               </View>
             )}
-        </BottomSheetScrollView>
+        </ScrollView>
 
         {/* ---------- footer ----------
             Sits inside the sheet's own content (not the app's tab bar) — since
