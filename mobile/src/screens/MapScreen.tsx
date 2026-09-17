@@ -650,7 +650,7 @@ export function MapScreen() {
   const { pushToast } = useToast();
   const { favs, toggleFav } = useFavorites();
   const { addWatts } = useWatts();
-  const { logVisit, logReview, logWatts } = useHistory();
+  const { logReview, logWatts } = useHistory();
   const { recordRating, recordPhoto, recordReport, recordAreaVisit } = useMissions();
   const { addReview } = useReviews();
   const { car } = useCar();
@@ -709,10 +709,11 @@ export function MapScreen() {
   };
   const openDetail = () => {
     setDetail(true);
-    if (activeSt) {
-      recordAreaVisit(activeSt.area);
-      logVisit(activeSt.id, activeSt.name);
-    }
+    // Histórico's "visit" entries log from actually navigating to a point
+    // (MapsHandoffSheet's "Abrir no Google Maps/Waze") now, not from
+    // opening its ficha — every ficha open was showing up as a visit,
+    // which didn't reflect real intent (reported).
+    if (activeSt) recordAreaVisit(activeSt.area);
   };
   const close = () => {
     setActive(null);

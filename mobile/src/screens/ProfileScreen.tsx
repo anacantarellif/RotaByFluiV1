@@ -57,7 +57,7 @@ export function ProfileScreen() {
   const { favs, toggleFav } = useFavorites();
   const { car, setCarId } = useCar();
   const { watts } = useWatts();
-  const { entries: historyEntries, logVisit } = useHistory();
+  const { entries: historyEntries } = useHistory();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [carPickerOpen, setCarPickerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -378,10 +378,7 @@ export function ProfileScreen() {
           favStations.map((s) => (
             <AnimatedPressable
               key={s.id}
-              onPress={() => {
-                setActiveId(s.id);
-                logVisit(s.id, s.name);
-              }}
+              onPress={() => setActiveId(s.id)}
               accessibilityRole="button"
               accessibilityLabel={`Abrir ficha completa de ${s.name}`}
               scaleTo={0.98}

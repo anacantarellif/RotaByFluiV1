@@ -102,8 +102,18 @@ function buildHtml(opts: {
     // points at the real coordinate the way the app's own SVG pin art does.
     function pinIcon(color, big, ring) {
       var w = big ? 30 : 24, h = big ? 41 : 33;
+      // The teardrop path touches all four edges of a plain "0 0 24 33"
+      // viewBox (top of the circle at y=0, tip at y=33, sides at x=0/24) —
+      // a stroke on that path extends half its width *outward* from those
+      // edges, past the viewBox, and an SVG clips anything outside its own
+      // viewBox (reported: the gold ring/border looking cut off, same
+      // clipping mechanism already fixed for the native pin's crown badge
+      // in MarkerPins.tsx). A 2px pad on every side — more than the 1.25px
+      // half of the widest stroke here (2.5) — gives the stroke room
+      // without visibly shrinking the pin.
+      var pad = 2;
       var strokeAttr = ring ? ' stroke="${colors.gold}" stroke-width="2.5"' : ' stroke="#fff" stroke-width="1.5"';
-      var svg = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 24 33" xmlns="http://www.w3.org/2000/svg">' +
+      var svg = '<svg width="' + w + '" height="' + h + '" viewBox="-' + pad + ' -' + pad + ' ' + (24 + pad * 2) + ' ' + (33 + pad * 2) + '" xmlns="http://www.w3.org/2000/svg">' +
         '<path d="M12 0C5.4 0 0 5.6 0 12.4C0 21.5 12 33 12 33C12 33 24 21.5 24 12.4C24 5.6 18.6 0 12 0Z" fill="' + color + '"' + strokeAttr + '/>' +
         '<circle cx="12" cy="12.5" r="5" fill="#fff"/>' +
         '</svg>';

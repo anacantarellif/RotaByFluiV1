@@ -49,6 +49,7 @@ import { GoogleGlyph, WazeGlyph } from '../icons/BrandGlyphs';
 import { MiniMapPreview } from '../map/MiniMapPreview';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
+import { useHistory } from '../../state/HistoryContext';
 import { Station, Guide } from '../../data/types';
 import { gmapsUrl, wazeUrl, openExternalUrl } from '../../utils/externalNav';
 
@@ -116,6 +117,7 @@ export function MapsHandoffSheet({
 }) {
   const { colors, space, font } = useTheme();
   const { pushToast } = useToast();
+  const { logVisit } = useHistory();
   const [pick, setPick] = useState<AppId>('gmaps');
   const [remember, setRemember] = useState(false);
   const activeApp = MAPS_APPS.find((a) => a.id === pick)!;
@@ -124,6 +126,11 @@ export function MapsHandoffSheet({
     const url = pick === 'gmaps' ? gmapsUrl(dest.lat, dest.lng) : wazeUrl(dest.lat, dest.lng);
     const appName = pick === 'gmaps' ? 'Google Maps' : 'Waze';
     const opened = await openExternalUrl(url);
+    // Histórico logs a "visit" here — actually navigating to a point — not
+    // just opening its ficha (reported: every ficha open was showing up as
+    // a visit, which doesn't reflect intent the way tapping "Abrir no
+    // Google Maps/Waze" does).
+    if (opened) logVisit(dest.id, dest.name);
     onClose();
     pushToast(opened ? `Abrindo no ${appName}…` : `${appName} não está instalado`, opened ? 'nav' : 'alert');
   };
