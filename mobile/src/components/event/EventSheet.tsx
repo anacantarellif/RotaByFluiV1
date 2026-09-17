@@ -15,7 +15,15 @@ import { ModalSheet } from '../sheets/ModalSheet';
 import { AnimatedPressable } from '../motion/AnimatedPressable';
 import { useTheme } from '../../theme/ThemeContext';
 import { useToast } from '../../state/ToastContext';
+import { useWatts } from '../../state/WattsContext';
+import { useHistory } from '../../state/HistoryContext';
 import { Report } from '../../data/types';
+
+// Matches the "+20 Watts" already spelled out in the confirm button/toast
+// copy below — confirming a community report never actually called
+// addWatts/logWatts at all, so the toast claimed a reward the driver's
+// real total (and Histórico) never got (reported).
+const CONFIRM_WATTS = 20;
 
 export function EventSheet({
   report,
@@ -26,6 +34,8 @@ export function EventSheet({
 }) {
   const { colors, font } = useTheme();
   const { pushToast } = useToast();
+  const { addWatts } = useWatts();
+  const { logWatts } = useHistory();
   // Same lifetime as the source's local `useState` — resets only when this component
   // unmounts (i.e. when the parent stops rendering it / `open` goes false), not merely
   // when `report` changes to a different report while still open.
@@ -49,6 +59,8 @@ export function EventSheet({
 
   const confirm = () => {
     setVoted('yes');
+    addWatts(CONFIRM_WATTS);
+    logWatts(CONFIRM_WATTS, `Confirmou reporte em ${report.station}`);
     pushToast('Reporte confirmado · +20 Watts', 'check');
   };
   const notAnymore = () => {
